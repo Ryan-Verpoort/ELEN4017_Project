@@ -10,14 +10,29 @@ FTP_MODE = {
     "Stream":"S"
 }
 
-# FTP_TYPE{}
-    
-# FTP_STU{}    
+FTP_TYPE = {
+    "ASCII": "A",
+    "NON-PRINT": "N"
+}
 
-# FTP_MODE{}
+FTP_MODE = { "STREAM": "S" }
 
-DTP_Port    = 12345
-MAX_FTP_CMD_STRING_LEN   =31
+FTP_STRU = { "FILE": "F" }
+
+FTP_COMMAND = {  
+    "USER": 1,            
+    "PASS": 2,
+    "QUIT": 3,
+    "PORT": 4,
+    "TYPE": 5,
+    "MODE": 6,
+    "STRU": 7,
+    "RETR": 8,
+    "STOR": 9,
+    "LIST": 10,
+    "HELP": 11,
+    "NOOP": 12 
+}
        
 FTP_SM = {
 "USER1":"331", # User name okay, need password.
@@ -25,37 +40,31 @@ FTP_SM = {
 "PASS1":"230", # User logged in, proceed.
 "PASS2":"530", # Not logged in.
 "QUIT":"221",  # Service closing control connection.
+"OKAY":"200",  # Command okay.
+"FAIL":"500",  # Syntax error, command unrecognized.
+"DNE" :"502"   # Command not implemented.
 }
 
 user="Tiny"
 passwords="Paws"
 
-FTP_COMMAND = {  
-"USER": 1,            
-"PASS": 2,
-"QUIT": 3,        
-}
+DTP_Port    = 12345
+MAX_FTP_CMD_STRING_LEN   =31
 
-#class FTP_COMMAND(Enum):
-#    USER = auto() 
-#    PASS = auto()
-    
 class FTP_Server_Interface(object):
     def __init__(self, connection, ClientAddr):
         self.connection         = connection
         self.ClientAddr         = ClientAddr
-        self.DTP_Socket         = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.ServerAddressDTP   = ('localhost', DTP_Port)
-        
+        self.DestinationAddr    = ClientAddr
         self.usernameFlag       = False
         self.loginFlag          = False
         self.quitFlag           = False
-        self.dataInFlag         = False
-        self.dataOutFlag        = False
-        self.mode = 0
-        self.stru = 0
-        self.type = 0
-        self.port = DTP_Port
+        self.transferFlag       = False
+        self.connectionFlag     = False
+        
+        self.type = FTP_TYPE["ASCII"]
+        self.mode = FTP_MODE["STREAM"]
+        self.stru = FTP_STRU["FILE"]
     
         self.ServerMsg = ""
         self.path = "" 
@@ -75,16 +84,41 @@ class FTP_Server_Interface(object):
             return FTP_SM["PASS1"]
         else:
             return FTP_SM["PASS2"]
-           
-            
+    #-----------------------------------------------
+    # Port(self,address)
+    #-----------------------------------------------
+    # in = address "h1, h2, h3, h4, p1, p2"
+    # This function does the following:
+    # -> Gets the local IP of the client
+    # -> Converts it into a . format
+    # -> Converts the port number
+    # -> Changes the socket address
+    #-----------------------------------------------
+    def PORT(self, address):
+        address = address.split(",")
+        Host = address[0]+ address[1]+ address[2]+ address[3]
+        host = socket.inet_ntoa(Host)
+        port = ord(address[4])*256 + ord(address[5])
+        Addr = (host, port)
+        self.DestinationAddr = Addr
+        return FTP_SM["OKAY"]
+    
+    def STOR(self):
+        return FTP_SM["OKAY"]
+        
+    def RETR(self):
+        return FTP_SM["OKAY"]
+        
     def QUIT(self):
         print 'quitting'
     	self.usernameFlag   = False
     	self.loginFlag      = False
         self.quitFlag       = True
         return FTP_SM["QUIT"]
+        
     # Thread is gna be needed for sending/receiving data
-    
+    def NOOP(self):
+        return FTP_SM["OKAY"]
     #-----------------------------------------------
     # Function CommandProcessor(connection, server):
     #-----------------------------------------------
@@ -98,7 +132,7 @@ class FTP_Server_Interface(object):
     def CommandProcessor(self):
         while not self.quitFlag:
             self.ServerReply()
-            msg = self.connection.recv(8192).decode('UTF-8')
+            msg = self.connection.recv(8192)
             #print msg
             cmd, argu = ParseFTPStringCommand(msg)
             if FTP_COMMAND[cmd] == FTP_COMMAND["USER"]:
@@ -108,20 +142,39 @@ class FTP_Server_Interface(object):
             elif FTP_COMMAND[cmd] == FTP_COMMAND["PASS"]:
                 self.ServerMsg = self.PASS(argu)
                 continue
+                
+            elif FTP_COMMAND[cmd] == FTP_COMMAND["PORT"]:
+                self.ServerMsg = self.PORT(argu)
+                continue
+                
+            elif FTP_COMMAND[cmd] == FTP_COMMAND["STOR"]:
+                self.ServerMsg = self.STOR(argu)
+                continue
+                
+            elif FTP_COMMAND[cmd] == FTP_COMMAND["RETR"]:
+                self.ServerMsg = self.RETR(argu)
+                continue
+                
             elif FTP_COMMAND[cmd] == FTP_COMMAND["QUIT"]:
                 self.ServerMsg = self.QUIT()
                 break
+                
+            elif FTP_COMMAND[cmd] == FTP_COMMAND["NOOP"]:
+                self.ServerMsg = self.NOOP()
+                continue
+                
             else:
                 print "command not implemented"
+                self.ServerMsg = FTP_SM["DNE"]
                 continue
+                
         self.ServerReply()
         self.connection.close()
-        self.DTP_Socket.close()
         
-                 
+        
     def ServerReply(self):
         if not self.ServerMsg =="":
-            self.connection.sendall(self.ServerMsg.encode('UTF-8'))
+            self.connection.sendall(self.ServerMsg)
             print self.ServerMsg
         self.ServerMsg = ""
         
