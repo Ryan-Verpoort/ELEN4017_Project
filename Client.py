@@ -1,7 +1,7 @@
 import socket
 
-Port = 21
-Host = 'localhost'#'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
+Port = 22
+Host = '127.0.0.1'#'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
 TypeList = [True,False,False]
 
 ControlSocket = socket.socket()
@@ -11,16 +11,16 @@ ControlSocket.connect((Host,Port))
 
 def FTPCommand(Command,Argument):
     if Argument == '':
-        Command = str(Command) + '\r\n'
+        FTP_CMD = str(Command) + '\r\n'
     else:
-        Command = str(Command) + ' ' + str(Argument) + '\r\n'
-    ControlSocket.send(Command.encode('UTF-8'))
+        FTP_CMD = str(Command) + ' ' + str(Argument) + '\r\n'
+    ControlSocket.send(FTP_CMD.encode('UTF-8'))
     ServerReply = ControlSocket.recv(8192).decode('UTF-8')
     return ServerReply
 
 
 #def Recieve_ASCII_File(Host, Encode_Type): For EBCDIC
-def Recieve_File(Host):
+def Recieve_File(Host,TypeList):
     
     if(TypeList[0] == True):
         Encode_Type = 'UTF-8'
@@ -31,6 +31,8 @@ def Recieve_File(Host):
 
     FileTransferSocket = socket.socket()
     FileTransferSocket.connect((Host,File_Port))
+    
+    
     File_Name = raw_input('Enter File Name: ')
     Reply = FTPCommand('RETR',File_Name)
     print('Control connection reply: \n' + str(Reply))
@@ -67,14 +69,15 @@ def Transmit_File(Host,TypeList):
     print(TypeList)
     Host,File_Port = passiveMode()
     
-    FileTransferSocket = socket.socket()
-    FileTransferSocket.connect((Host,File_Port))
-    
     File_Name = raw_input('Enter File Name: ')
+    
+    FileTransferSocket = socket.socket()
+    FileTransferSocket.connect((Host,File_Port))   
     
     Reply = FTPCommand('STOR',File_Name)
     print('Control connection reply: \n' + str(Reply))
     
+   
     TransmittedFile = open(File_Name,'rb')
     
     if(TypeList[2]==True):
@@ -123,7 +126,6 @@ def NoAction(Input):
 def FileDirectory(Input):
 
     Host,File_Port = passiveMode()
-    
     FileTransferSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     FileTransferSocket.connect((Host,File_Port))
     
@@ -134,8 +136,8 @@ def FileDirectory(Input):
     Reply = FileTransferSocket.recv(4096).decode('UTF-8')
     print('Data port reply:\n ' + str(Reply))
     
-    Reply = ControlSocket.recv(4096).decode('UTF-8')
-    print('Control connection:\n ' + str(Reply))
+    #Reply = ControlSocket.recv(4096).decode('UTF-8')
+    #print('Control connection:\n ' + str(Reply))
     
     FileTransferSocket.close()
     
@@ -172,7 +174,7 @@ def Login(port,Host):
 def passiveMode():
     
     Reply = FTPCommand('PASV','')
-    print( Reply)
+    print(Reply)
     start = Reply.find('(')
     end = Reply.find(')')
     Reply = Reply[start+1:end]
@@ -188,9 +190,10 @@ def GetHelp(Input):
     Input = raw_input('Enter Command: ')
     Input = Input.upper()
     print(FTPCommand('HELP',Input))
+    print(ControlSocket.recv(8192).decode('UTF-8'))
     return
 
-Login(Port,Host)
+#Login(Port,Host)
 
 def DataType(type,TypeList):
     type = raw_input('Type: ')
@@ -202,42 +205,43 @@ def DataType(type,TypeList):
         TypeList[2] = True
     else:
         TypeList[0] = True
-    print(TypeList)
     print(FTPCommand('TYPE',type))
     return
 
 UserInput = raw_input('Input: ' )
-UserInput = UserInput.upper()
+UserRequest = UserInput.upper()
 
-while UserInput != 'QUIT':
+while UserRequest != 'QUIT':
 
-    if UserInput == 'STOR':
+    if UserRequest == 'STOR':
         Transmit_File(Host,TypeList)
     
-    elif UserInput == 'RETR':
+    elif UserRequest == 'RETR':
         Recieve_File(Host,TypeList)
         
-    elif UserInput == 'PORT':
+    elif UserRequest == 'PORT':
         NewPort(Host,1250)
 
-    elif UserInput == 'NOOP':
-        NoAction(UserInput)
+    elif UserRequest == 'NOOP':
+        NoAction(UserRequest)
         
-    elif UserInput == 'LIST':
-        FileDirectory(UserInput)
+    elif UserRequest == 'LIST':
+        FileDirectory(UserRequest)
         
-    elif UserInput == 'TYPE':
-        DataType(UserInput,TypeList)
+    elif UserRequest == 'TYPE':
+        DataType(UserRequest,TypeList)
         
-    elif UserInput == 'HELP':
-        GetHelp(UserInput)
+    elif UserRequest == 'HELP':
+        GetHelp(UserRequest)
+        
+    elif UserRequest == 'PASV':
+        passiveMode()
         
     else:
         print(FTPCommand(UserInput,''))
-        print(str(UserInput) + ': 500 Command unrecognized.')
     
     UserInput = raw_input('Input: ' )
-    UserInput = UserInput.upper()
+    UserRequest = UserInput.upper()
 
 ControlSocket.send(UserInput.encode('UTF-8'))
 ControlSocket.close()
