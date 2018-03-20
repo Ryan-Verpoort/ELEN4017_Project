@@ -23,7 +23,21 @@ connectionSocket, address = ControlSocket.accept()
 
 #Path for listing files
 #need to modify to take in user input for reading and writing 
-path = 'C:\\Users\\95ry9\\Documents\\Varsity\\Fourth Year\\ELEN4017_Networks\\Project\\Stuff'
+#path = os.getcwd()
+
+#Formatting of Input arguments for server to decide what must be done
+def InputArgument(Input):
+    SpacePosition = Input.find(' ')
+    #Look for Space determine if command has arguments
+    if(SpacePosition != -1):
+        Command = Input[0:SpacePosition]
+        End = Input.find('\r\n')
+        Argument = Input[SpacePosition+1:End]
+    else:
+        End = Input.find('\r\n')
+        Command = Input[0:End]
+        Argument = ''
+    return Command,Argument
 
 #Recive a File From Client
 def Recieve_File(FileConnectionSocket,TypeList,File_Name):
@@ -91,9 +105,10 @@ def NoAction(Input):
     return
     
 #List all files and folders in current directory
-def CurrentFileDirectory(FileConnectionSocket,path):
-    Files = 'Files in Current Directory: \n'
-    FileDirectory = os.listdir(path)
+def CurrentFileDirectory(FileConnectionSocket):
+    DirectoryName = os.path.basename(os.getcwd())
+    Files = 'Files in Current Directory : \"' + DirectoryName + '\"\n'
+    FileDirectory = os.listdir(os.getcwd())
     
     for i in FileDirectory:
         Files = Files + str(i) + '\n'
@@ -101,20 +116,6 @@ def CurrentFileDirectory(FileConnectionSocket,path):
     FileConnectionSocket.close()
     return
     
-#Formatting of Input arguments for server to decide what must be done
-def InputArgument(Input):
-    SpacePosition = Input.find(' ')
-    #Look for Space determine if command has arguments
-    if(SpacePosition != -1):
-        Command = Input[0:SpacePosition]
-        End = Input.find('\r\n')
-        Argument = Input[SpacePosition+1:End]
-    else:
-        End = Input.find('\r\n')
-        Command = Input[0:End]
-        Argument = ''
-    return Command,Argument
-
 #Change the data type for file transfers
 def DataType(type,TypeList):
     for i in xrange(0, len(TypeList)):
@@ -159,12 +160,37 @@ def PassiveMode(Host):
     
     return DataConnection, DataAddress
 
+def ChangeDirectory(DirectoryName):
+    os.chdir(DirectoryName)
+    Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.'
+    connectionSocket.send(Reply.encode('UTF-8'))
+    return
+
+def MakeDirectory(DirectoryName):
+    os.mkdir(DirectoryName)
+    Reply = '257 \"' + DirectoryName + '\" created successfully'
+    connectionSocket.send(Reply.encode('UTF-8'))
+    return
+
+def RemoveDirectory(DirectoryName):
+    os.rmdir(DirectoryName)
+    Reply = '250 \"' + DirectoryName + '\" deleted successfully.'
+    connectionSocket.send(Reply.encode('UTF-8'))
+    return
+
+def DeleteFile(File_Name):
+    os.remove(File_Name)
+    Reply = '250 \"' + File_Name + '\" deleted successfully.'
+    connectionSocket.send(Reply.encode('UTF-8'))
+    return
+
 print ('Connection request from address: ' + str(address))
 true = 1
 while 1:
     Input = connectionSocket.recv(4096).decode('UTF-8')
     Command,Argument = InputArgument(Input)
     Input = Command
+    print(Input)
 
     if Input == 'STOR':
         #connectionSocket.send('Hello Darkness')
@@ -187,7 +213,7 @@ while 1:
     
     elif Input == 'LIST':
         #connectionSocket.send('Hello Darkness')
-        CurrentFileDirectory(FileConnectionSocket,path)
+        CurrentFileDirectory(FileConnectionSocket)
         continue
     
     elif Input == 'QUIT':
@@ -200,6 +226,23 @@ while 1:
         
     elif Input == 'PASV':
         FileConnectionSocket, address = PassiveMode(Host)
+        continue
+        
+    elif Input == 'CWD':
+        ChangeDirectory(Argument)
+        continue
+    
+    elif Input == 'MKD':
+        MakeDirectory(Argument)
+        continue
+    
+    elif Input == 'RMD':
+        RemoveDirectory(Argument)
+        continue
+    
+    elif Input == 'DELE':
+        DeleteFile(Argument)
+        continue
     
     else:
         connectionSocket.send('Not Implemented')

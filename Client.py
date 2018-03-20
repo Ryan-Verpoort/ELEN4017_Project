@@ -193,6 +193,26 @@ def GetHelp(Input):
     print(ControlSocket.recv(8192).decode('UTF-8'))
     return
 
+def ChangeDirectory():
+    DirectoryName = raw_input('Directory Name: ')
+    print(FTPCommand('CWD',DirectoryName))
+    return
+
+def MakeDirectory():
+    DirectoryName = raw_input('Directory Name: ')
+    print(FTPCommand('MKD',DirectoryName))
+    return
+
+def RemoveDirectory():
+    DirectoryName = raw_input('Directory Name: ')
+    print(FTPCommand('RMD',DirectoryName))
+    return
+
+def DeleteFile():
+    File_Name = raw_input('File Name: ')
+    print(FTPCommand('DELE',File_Name))
+    return
+
 #Login(Port,Host)
 
 def DataType(type,TypeList):
@@ -236,6 +256,18 @@ while UserRequest != 'QUIT':
         
     elif UserRequest == 'PASV':
         passiveMode()
+        
+    elif UserRequest == 'CWD':
+        ChangeDirectory()
+        
+    elif UserRequest == 'MKD':
+        MakeDirectory()
+        
+    elif UserRequest == 'RMD':
+        RemoveDirectory()
+        
+    elif UserRequest == 'DELE':
+        DeleteFile()
         
     else:
         print(FTPCommand(UserInput,''))
