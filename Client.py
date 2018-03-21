@@ -1,7 +1,7 @@
 import socket
 
-Port = 22
-Host = '127.0.0.1'#'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
+Port = 2500
+Host = '127.0.0.1' #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
 TypeList = [True,False,False]
 
 ControlSocket = socket.socket()
@@ -208,6 +208,10 @@ def RemoveDirectory():
     print(FTPCommand('RMD',DirectoryName))
     return
 
+def ParentDirectory():
+    print(FTPCommand('CDUP',''))
+    return
+
 def DeleteFile():
     File_Name = raw_input('File Name: ')
     print(FTPCommand('DELE',File_Name))
@@ -228,11 +232,16 @@ def DataType(type,TypeList):
     print(FTPCommand('TYPE',type))
     return
 
-UserInput = raw_input('Input: ' )
-UserRequest = UserInput.upper()
+def Disconnect():
+    print(FTPCommand('QUIT',''))
+    return
 
-while UserRequest != 'QUIT':
-
+while 1:
+    
+    UserInput = raw_input('Input: ' )
+    UserRequest = UserInput.upper()
+    print (UserRequest)
+    
     if UserRequest == 'STOR':
         Transmit_File(Host,TypeList)
     
@@ -266,14 +275,17 @@ while UserRequest != 'QUIT':
     elif UserRequest == 'RMD':
         RemoveDirectory()
         
+    elif UserRequest == 'CDUP':
+        ParentDirectory()
+        
     elif UserRequest == 'DELE':
         DeleteFile()
+    
+    elif UserRequest == 'QUIT':
+        Disconnect()
+        break
         
     else:
         print(FTPCommand(UserInput,''))
     
-    UserInput = raw_input('Input: ' )
-    UserRequest = UserInput.upper()
-
-ControlSocket.send(UserInput.encode('UTF-8'))
 ControlSocket.close()
