@@ -18,6 +18,7 @@ class FTP_Threading(threading.Thread):
         self.Port = Port
         self.Host = Host
         self.UserPath = script_dir
+        self.UserParentDir = ''
         print ('Connection request from address: ' + str(self.ClientAddress))
     
     def run(self):
