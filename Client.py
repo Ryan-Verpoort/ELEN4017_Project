@@ -1,306 +1,235 @@
 import socket
+import os
 
-ControlConnectionFlag = False
-DataConnectionFlag = False
-LoggedInFlag = False
-UploadFlag = False
-DownloadFlag = False
+script_dir = os.path.dirname(__file__)
 
-Port = 2500
-Host = '127.0.0.1' #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
-TypeList = [True,False,False]
+class Client(object):
+    def __init__(self):
+        # information needed for the gui
+        self.ControlConnectionFlag = False
+        self.DataConnectionFlag = False
+        self.LoginFlag = False
+        self.username = ""
+        self.server_reply = ""
+        self.command = ""
+        
+        # FTP information
+        self.Port = 2500
+        self.Host = '127.0.0.1' #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
+        self.TypeList = [True,False,False]
+        self.ControlSocket = socket.socket()
+        self.DataSocket = socket.socket()
+        self.DataAddress = ("",0)
+        # Client directory paths for upload/download
+        self.UserPath = os.path.abspath(os.path.join(os.path.sep,script_dir,"Local_Client_Files"))
+        print str(self.UserPath)
 
-ControlSocket = socket.socket()
-ControlSocket.connect((Host,Port))
-ControlConnectionFlag = True
-'''
-list is done from the function list which lists whats in directory 
-gui will have to manage whats on the clients machine server has no access to clieents machine or directories
-'''
-
-def FTPCommand(Command,Argument):
-    if Argument == '':
-        FTP_CMD = str(Command) + '\r\n'
-    else:
-        FTP_CMD = str(Command) + ' ' + str(Argument) + '\r\n'
-    ControlSocket.send(FTP_CMD.encode('UTF-8'))
-    ServerReply = ControlSocket.recv(8192).decode('UTF-8')
-    return ServerReply
-
-
-#def Recieve_ASCII_File(Host, Encode_Type): For EBCDIC
-def Recieve_File(Host,TypeList):
+    def __del__(self):
+        self.ControlSocket.close()
     
-    if(TypeList[0] == True):
-        Encode_Type = 'UTF-8'
-    elif(TypeList[1]==True):
-        Encode_Type = 'cp500'
-    
-    Host,File_Port = passiveMode()
+    '''
+    list is done from the function list which lists whats in directory 
+    gui will have to manage whats on the clients machine server has no access to clieents machine or directories
+    '''
 
-    FileTransferSocket = socket.socket()
-    FileTransferSocket.connect((Host,File_Port))
-    DataConnectionFlag = True
-    
-    File_Name = raw_input('Enter File Name: ')
-    Reply = FTPCommand('RETR',File_Name)
-    print('Control connection reply: \n' + str(Reply))
-    if Reply[0] != '5':
-        File_Name = 'Docs/'+File_Name
-        DownloadFlag = True
-        if(TypeList[2] == True):
-            RecievedData = FileTransferSocket.recv(8192)
-            File =  open(File_Name,'wb')
-            
-            while RecievedData:
-                File.write(RecievedData)
-                RecievedData = FileTransferSocket.recv(8192)
+    def FTPCommand(self,Command,Argument=""):
+        if Argument == '':
+            FTP_CMD = str(Command) + '\r\n'
         else:
-            RecievedData = FileTransferSocket.recv(8192).decode(Encode_Type)
-            File =  open(File_Name,'wb')
+            FTP_CMD = str(Command) + ' ' + str(Argument) + '\r\n'
+        self.ControlSocket.send(FTP_CMD.encode('UTF-8'))
+        ServerReply = self.ControlSocket.recv(8192).decode('UTF-8')
+        self.command = FTP_CMD
+        self.server_reply = ServerReply 
+        print "C----------->S "+self.command 
+        print "C<-----------S "+self.server_reply 
+        return ServerReply
+
+    def USER (self, user, command="USER", ):
+        print "hello "+user
+        here = self.FTPCommand(command, user)
+    
+    def PASS (self,  password, command="PASS"):
+        print self.username+ " Logged in successfully"
+        msg = self.FTPCommand(command, password)
+        if msg[0] == "2":
+            self.LoginFlag = True
+        else:
+            self.LoginFlag = False
+        
+    # [A,E,I]
+    def Receive_File(self, File_Name):
+        print "err1"
+        if(self.TypeList[0] == True):
+            Encode_Type = 'UTF-8'
+        elif(self.TypeList[1]==True):
+            Encode_Type = 'cp500'
+        
+        Reply = FTPCommand('RETR', File_Name)
+        print('Control connection reply: \n' + str(Reply))
+        
+        if Reply[0] != '5':
+            File_Name = self.UserPath+"/"+File_Name
+            if(TypeList[2] == True):
+                ReceivedData = self.DataSocket.recv(8192)
+                File =  open(File_Name,'wb')
             
-            while RecievedData:
-                File.write(RecievedData)
-                RecievedData = FileTransferSocket.recv(8192).decode(Encode_Type)
-        File.close()
-        DownloadFlag = False
+                while ReceivedData:
+                    File.write(ReceivedData)
+                    ReceivedData = self.DataSocket.recv(8192)
+            else:
+                ReceivedData = self.DataSocket.recv(8192).decode(Encode_Type)
+                File =  open(File_Name,'wb')
+                while ReceivedData:
+                    File.write(ReceivedData)
+                    ReceivedData = self.DataSocket.recv(8192).decode(Encode_Type)
+                    
+            File.close()
+            Reply = self.ControlSocket.recv(8192).decode('UTF-8')
+            print(Reply)
+            
+        self.DataSocket.close()
+        return
+
+    def Transmit_File(self, File_Name):
+    
+        if(self.TypeList[0] == True):
+            Encode_Type = 'UTF-8'
+        elif(self.TypeList[1]==True):
+            Encode_Type = 'cp500'
+        print(self.TypeList)
+        
+        Reply= FTPCommand('STOR',File_Name)
+        print('Control connection reply: \n' + str(Reply))
+        self.servermsg = Reply
+        TransmittedFile = open(self.UserPath+'/'+File_Name,'rb')
+        if Reply[0] != '5':
+            if(TypeList[2]==True):
+                Reading = TransmittedFile.read(8192)
+                while (Reading):
+                    self.DataSocket.send(Reading)
+                    Reading = TransmittedFile.read(8192)
+            else:
+                Reading = self.DataSocket.read(8192).encode(Encode_Type)
+                while (Reading):
+                    self.DataSocket.send(Reading)
+                    Reading = self.DataSocket.read(8192).encode(Encode_Type)
+            TransmittedFile.close()
+        
         Reply = ControlSocket.recv(8192).decode('UTF-8')
+        
+        self.servermsg = Reply
+        self.DataSocket.close()
+        
+        return
+        
+    def NoAction(self):
+    
+        ServerReply = FTPCommand('NOOP','')
+        print(ServerReply) 
+        return
+
+    def FileDirectory(self):
+        
+        ControlReply = self.FTPCommand('LIST') 
+        
+        if ControlReply[0] == "1" or ControlReply[0] == "2":
+            DataReply = self.DataSocket.recv(4096).decode('UTF-8')
+            DataReply = DataReply
+            DataReply = DataReply.split('\n')
+    
+        self.DataSocket.close()
+        return DataReply
+
+    def passiveMode(self):
+    
+        Reply = self.FTPCommand('PASV')
         print(Reply)
-    FileTransferSocket.close()
-    DataConnectionFlag = False
-    return
-
-def Transmit_File(Host,TypeList):
-    
-    if(TypeList[0] == True):
-        Encode_Type = 'UTF-8'
-    elif(TypeList[1]==True):
-        Encode_Type = 'cp500'
-    print(TypeList)
-    Host,File_Port = passiveMode()
-    
-    File_Name = raw_input('Enter File Name: ')
-    
-    FileTransferSocket = socket.socket()
-    FileTransferSocket.connect((Host,File_Port))   
-    DataConnectionFlag = True
-    
-    Reply = FTPCommand('STOR',File_Name)
-    print('Control connection reply: \n' + str(Reply))
-    
-   
-    TransmittedFile = open(File_Name,'rb')
-    UploadFlag = True
-    if(TypeList[2]==True):
-        Reading = TransmittedFile.read(8192)
-        while (Reading):
-            FileTransferSocket.send(Reading)
-            Reading = TransmittedFile.read(8192)
-    else:
-        Reading = TransmittedFile.read(8192).encode(Encode_Type)
-        while (Reading):
-            FileTransferSocket.send(Reading)
-            Reading = TransmittedFile.read(8192).encode(Encode_Type)
-    TransmittedFile.close()
-    UploadFlag = True
-    
-    FileTransferSocket.close()
-    DataConnectionFlag = False
-    Reply = ControlSocket.recv(8192).decode('UTF-8')
-    print(Reply)
-
-    return
-#Not implementd on server side
-'''
-#Change The port of the File connection
-def NewPort(Host, NewPort):
-    
-    Host,Port = passiveMode()
-    #Replace the . with , to conform to the FTP PORT configuration h1,h2,h3,h4
-    Host = str(Host).replace('.',',')
-    #Convert the Port into Hex pairing them into 2 sets of 2 => p1,p2
-    NewPort = hex(NewPort)[2:]
-    #Create the new address to connect to convert the hex into dec and send h1,h2,h3,h4,p1,p2
-    NewAddress = str(Host) + ',' + str(int(NewPort[0:2],16)) +str(int(NewPort[2:],16))
-    #Create Request String
-    Request = 'PORT ' + NewAddress + '\r\n'
-    
-    ControlSocket.send(Request.encode('UTF-8'))
-    #Port = NewPort
-    Reply = ControlSocket.recv(8196).decode('UTF-8')
-    
-    print(Reply)
-    return NewAddress
-'''
-def NoAction(Input):
-    
-    ServerReply = FTPCommand('NOOP','')
-    print(ServerReply) 
-    return
-
-def FileDirectory(Input):
-
-    Host,File_Port = passiveMode()
-    FileTransferSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    FileTransferSocket.connect((Host,File_Port))
-    
-    Reply = FTPCommand('LIST','')
-    
-    print('Control connection: \n' + str(Reply))
-    
-    Reply = FileTransferSocket.recv(4096).decode('UTF-8')
-    print('Data port reply:\n ' + str(Reply))
-    
-    #Reply = ControlSocket.recv(4096).decode('UTF-8')
-    #print('Control connection:\n ' + str(Reply))
-    
-    FileTransferSocket.close()
-    
-    return
-
-
-def Login(port,Host):    
-    
-    ServerReply = ControlSocket.recv(4096).decode('UTF-8')
-    print('Reply from server:\n' + str(ServerReply))
-    
-    while 1:
+        Reply = Reply.replace(".",",")
+        start = Reply.find('(')
+        end = Reply.find(')')
+        Reply = Reply[start+1:end]
+        Reply = Reply.split(',')
+        print(Reply)
+        Host = str(Reply[0]) + '.'+ str(Reply[1]) +'.'+ str(Reply[2]) +'.'+ str(Reply[3])
+        Port = (int(Reply[4])*256) + int(Reply[5])
+        print('New host Data Connection: \n' + str(Host))
+        print('New port Data Connection:\n ' + str(Port))
+        self.DataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.DataSocket.connect((Host,Port))
         
-        Username = raw_input('USER ')
-        ServerReplyCode = FTPCommand('USER',Username)
-        print( 'Reply from server: \n' + str(ServerReplyCode))
-        
-        if ServerReplyCode[0:3] == '331' or ServerReplyCode[0:3] =='230':
-            break
-        
-    while 1:
-        
-        Password = raw_input('PASS ')#'eiTqR7EMZD5zy7M' 
-        ServerReplyCode = FTPCommand('PASS',Password)
-        print('Reply from server: \n' + str(ServerReplyCode))
-        
-        if ServerReplyCode[0:3] == '230':
-            LoggedInFlag = True
-            break
 
-    return
+    def GetHelp(self):
+        Input = raw_input('Enter Command: ')
+        Input = Input.upper()
+        print(self.FTPCommand('HELP',Input))
+        print(self.ControlSocket.recv(8192).decode('UTF-8'))
+        return
 
-def passiveMode():
-    
-    Reply = FTPCommand('PASV','')
-    print(Reply)
-    start = Reply.find('(')
-    end = Reply.find(')')
-    Reply = Reply[start+1:end]
-    Reply = Reply.split(',')
-    Host = str(Reply[0]) + '.'+ str(Reply[1]) +'.'+ str(Reply[2]) +'.'+ str(Reply[3])
-    Port = (int(Reply[4])*256) + int(Reply[5])
-    print('New host Data Connection: \n' + str(Host))
-    print('New port Data Connection:\n ' + str(Port))
-    
-    return Host,Port
+    def ChangeDirectory(self,DirectoryName ):
+        print(self.FTPCommand('CWD',DirectoryName))
+        return
 
-def GetHelp(Input):
-    Input = raw_input('Enter Command: ')
-    Input = Input.upper()
-    print(FTPCommand('HELP',Input))
-    print(ControlSocket.recv(8192).decode('UTF-8'))
-    return
+    def MakeDirectory(self, DirectoryName ):
+        self.FTPCommand('MKD',DirectoryName)
+        return
 
-def ChangeDirectory():
-    DirectoryName = raw_input('Directory Name: ')
-    print(FTPCommand('CWD',DirectoryName))
-    return
+    def RemoveDirectory(self, DirectoryName ):
+        self.FTPCommand('RMD',DirectoryName)
+        return
 
-def MakeDirectory():
-    DirectoryName = raw_input('Directory Name: ')
-    print(FTPCommand('MKD',DirectoryName))
-    return
+    def ParentDirectory(self):
+        self.FTPCommand('CDUP','')
+        return
 
-def RemoveDirectory():
-    DirectoryName = raw_input('Directory Name: ')
-    print(FTPCommand('RMD',DirectoryName))
-    return
+    def DeleteFile(self, File_Name):
+        self.FTPCommand('DELE',File_Name)
+        return
 
-def ParentDirectory():
-    print(FTPCommand('CDUP',''))
-    return
+    #Login(Port,Host)
+    #[A,E,I]
+    def DataType(self):
+        Type = raw_input('Type: ')
+        for i in xrange(0, len(TypeList)):
+            TypeList[i] = False
+        if(Type == 'E'):
+            TypeList[1] = True
+        elif(Type == 'I'):
+            TypeList[2] = True
+        else:
+            TypeList[0] = True
+        print(FTPCommand('TYPE',Type))
+        return
 
-def DeleteFile():
-    File_Name = raw_input('File Name: ')
-    print(FTPCommand('DELE',File_Name))
-    return
-
-#Login(Port,Host)
-
-def DataType(type,TypeList):
-    type = raw_input('Type: ')
-    for i in xrange(0, len(TypeList)):
-        TypeList[i] = False
-    if(type == 'E'):
-        TypeList[1] = True
-    elif(type == 'I'):
-        TypeList[2] = True
-    else:
-        TypeList[0] = True
-    print(FTPCommand('TYPE',type))
-    return
-
-def Disconnect():
-    print(FTPCommand('QUIT',''))
-    return
-
-while 1:
-    
-    UserInput = raw_input('Input: ' )
-    UserRequest = UserInput.upper()
-    print (UserRequest)
-    
-    if UserRequest == 'STOR':
-        Transmit_File(Host,TypeList)
-    
-    elif UserRequest == 'RETR':
-        Recieve_File(Host,TypeList)
+    def Disconnect(self):
+        self.FTPCommand('QUIT')
+        self.ControlConnectionFlag = False
+        return
         
-    elif UserRequest == 'PORT':
-        NewPort(Host,1250)
+    def Connect(self):
+        self.ControlSocket = socket.socket()
+        self.ControlSocket.connect((self.Host,self.Port))
+        self.ControlConnectionFlag = True
+        print "Connecting" 
 
-    elif UserRequest == 'NOOP':
-        NoAction(UserRequest)
-        
-    elif UserRequest == 'LIST':
-        FileDirectory(UserRequest)
-        
-    elif UserRequest == 'TYPE':
-        DataType(UserRequest,TypeList)
-        
-    elif UserRequest == 'HELP':
-        GetHelp(UserRequest)
-        
-    elif UserRequest == 'PASV':
-        passiveMode()
-        
-    elif UserRequest == 'CWD':
-        ChangeDirectory()
-        
-    elif UserRequest == 'MKD':
-        MakeDirectory()
-        
-    elif UserRequest == 'RMD':
-        RemoveDirectory()
-        
-    elif UserRequest == 'CDUP':
-        ParentDirectory()
-        
-    elif UserRequest == 'DELE':
-        DeleteFile()
-    
-    elif UserRequest == 'QUIT':
-        Disconnect()
-        break
-        
-    else:
-        print(FTPCommand(UserInput,''))
-    
-ControlSocket.close()
-ControlConectionFlag = False
+'''        
+FTP_TYPE = {
+    "A": "UTF-8",
+    "E": "cp500"
+    "I": "None"
+}'''
+
+EXTENSION = {
+    ".jpeg": "I",
+    ".png" : "I",
+    ".mp4" : "I",
+    ".txt" : "A"
+}
+def getType(File_Name):
+    end=len(File_Name)
+    extensionIndex = File_Name.find(".")
+    extension = File_Name [extensionIndex:end]
+    if extension in EXTENSION:
+        return EXTENSION[extension]
+    print "Only Processing .jpeg .png .mp4 .txt"
+    return "" 
