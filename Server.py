@@ -17,7 +17,7 @@ class FTP_Threading(threading.Thread):
         self.ClientAddress = ClientAddress
         self.Port = Port
         self.Host = Host
-        self.path = script_dir
+        self.UserPath = script_dir
         print ('Connection request from address: ' + str(self.ClientAddress))
     
     def run(self):
@@ -42,8 +42,8 @@ class FTP_Threading(threading.Thread):
                 continue
             
             elif Command == 'LIST':
-                print(self.path)
-                self.CurrentFileDirectory(self.FileConnectionSocket,self.path)
+                print(self.UserPath)
+                self.CurrentFileDirectory(self.FileConnectionSocket,self.UserPath)
                 continue
             
             elif Command == 'TYPE':
@@ -55,7 +55,8 @@ class FTP_Threading(threading.Thread):
                 continue
                 
             elif Command == 'CWD':
-                self.ChangeDirectory(Argument,self.path)
+                self.ChangeDirectory(Argument,self.UserPath)
+                print(self.UserPath)
                 continue
             
             elif Command == 'MKD':
@@ -67,7 +68,7 @@ class FTP_Threading(threading.Thread):
                 continue
             
             elif Command == 'CDUP':
-                self.ParentDirectory(self.path)
+                self.ParentDirectory(self.UserPath)
             
             elif Command == 'DELE':
                 self.DeleteFile(Argument)
@@ -163,16 +164,16 @@ class FTP_Threading(threading.Thread):
     
     #Not Working With Multiple Users
     #List all files and folders in current directory
-    def CurrentFileDirectory(self,FileConnectionSocket,path):
-        DirectoryName = os.path.basename(path)
+    def CurrentFileDirectory(self,FileConnectionSocket,UserPath):
+        DirectoryName = os.path.basename(UserPath)
         Files = 'Files in Current Directory : \"' + DirectoryName + '\"\n'
-        FileDirectory = os.listdir(path)
+        FileDirectory = os.listdir(UserPath)
         
         for i in FileDirectory:
             Files = Files + str(i) + '\n'
         FileConnectionSocket.send(Files.encode('UTF-8'))
         FileConnectionSocket.close()
-        print(path)
+        print(UserPath)
         return
         
     #Change the data type for file transfers
@@ -221,14 +222,13 @@ class FTP_Threading(threading.Thread):
         return DataConnection, DataAddress
     
     #Changes for all users needs to be fixed
-    def ChangeDirectory(self,DirectoryName,path):
+    def ChangeDirectory(self,DirectoryName,UserPath):
         if os.path.isdir(DirectoryName):
-            path = os.path.abspath(os.path.join(os.path.sep,script_dir,DirectoryName))
+            self.UserPath = os.path.abspath(os.path.join(os.path.sep,UserPath,DirectoryName))
             Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.'
         else :
             Reply = '550 \"' + DirectoryName + '\"does not exsist.'
         self.ClientSocket.send(Reply.encode('UTF-8'))
-        print(path)
         return
     
     def MakeDirectory(self,DirectoryName):
@@ -243,10 +243,11 @@ class FTP_Threading(threading.Thread):
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
 
-    def ParentDirectory(self,path):
-        path = script_dir
-        Reply = os.path.basename(path)
+    def ParentDirectory(self,UserPath):
+        self.UserPath = script_dir
+        Reply = os.path.basename(self.UserPath)
         self.ClientSocket.send(Reply.encode('UTF-8')) 
+        print(self.UserPath)
         return
     
     def DeleteFile(self,File_Name):

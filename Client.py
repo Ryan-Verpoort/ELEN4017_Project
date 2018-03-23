@@ -1,13 +1,22 @@
 import socket
 
+ControlConnectionFlag = False
+DataConnectionFlag = False
+LoggedInFlag = False
+UploadFlag = False
+DownloadFlag = False
+
 Port = 2500
 Host = '127.0.0.1' #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
 TypeList = [True,False,False]
 
 ControlSocket = socket.socket()
 ControlSocket.connect((Host,Port))
-
-
+ControlConnectionFlag = True
+'''
+list is done from the function list which lists whats in directory 
+gui will have to manage whats on the clients machine server has no access to clieents machine or directories
+'''
 
 def FTPCommand(Command,Argument):
     if Argument == '':
@@ -31,14 +40,14 @@ def Recieve_File(Host,TypeList):
 
     FileTransferSocket = socket.socket()
     FileTransferSocket.connect((Host,File_Port))
-    
+    DataConnectionFlag = True
     
     File_Name = raw_input('Enter File Name: ')
     Reply = FTPCommand('RETR',File_Name)
     print('Control connection reply: \n' + str(Reply))
     if Reply[0] != '5':
         File_Name = 'Docs/'+File_Name
-        
+        DownloadFlag = True
         if(TypeList[2] == True):
             RecievedData = FileTransferSocket.recv(8192)
             File =  open(File_Name,'wb')
@@ -54,10 +63,11 @@ def Recieve_File(Host,TypeList):
                 File.write(RecievedData)
                 RecievedData = FileTransferSocket.recv(8192).decode(Encode_Type)
         File.close()
+        DownloadFlag = False
         Reply = ControlSocket.recv(8192).decode('UTF-8')
         print(Reply)
     FileTransferSocket.close()
-    
+    DataConnectionFlag = False
     return
 
 def Transmit_File(Host,TypeList):
@@ -73,13 +83,14 @@ def Transmit_File(Host,TypeList):
     
     FileTransferSocket = socket.socket()
     FileTransferSocket.connect((Host,File_Port))   
+    DataConnectionFlag = True
     
     Reply = FTPCommand('STOR',File_Name)
     print('Control connection reply: \n' + str(Reply))
     
    
     TransmittedFile = open(File_Name,'rb')
-    
+    UploadFlag = True
     if(TypeList[2]==True):
         Reading = TransmittedFile.read(8192)
         while (Reading):
@@ -91,12 +102,16 @@ def Transmit_File(Host,TypeList):
             FileTransferSocket.send(Reading)
             Reading = TransmittedFile.read(8192).encode(Encode_Type)
     TransmittedFile.close()
+    UploadFlag = True
+    
     FileTransferSocket.close()
+    DataConnectionFlag = False
     Reply = ControlSocket.recv(8192).decode('UTF-8')
     print(Reply)
 
     return
-
+#Not implementd on server side
+'''
 #Change The port of the File connection
 def NewPort(Host, NewPort):
     
@@ -116,7 +131,7 @@ def NewPort(Host, NewPort):
     
     print(Reply)
     return NewAddress
-
+'''
 def NoAction(Input):
     
     ServerReply = FTPCommand('NOOP','')
@@ -148,8 +163,7 @@ def Login(port,Host):
     
     ServerReply = ControlSocket.recv(4096).decode('UTF-8')
     print('Reply from server:\n' + str(ServerReply))
-
-    ServerReplyCode = ''
+    
     while 1:
         
         Username = raw_input('USER ')
@@ -159,7 +173,6 @@ def Login(port,Host):
         if ServerReplyCode[0:3] == '331' or ServerReplyCode[0:3] =='230':
             break
         
-    ServerReplyCode =''
     while 1:
         
         Password = raw_input('PASS ')#'eiTqR7EMZD5zy7M' 
@@ -167,6 +180,7 @@ def Login(port,Host):
         print('Reply from server: \n' + str(ServerReplyCode))
         
         if ServerReplyCode[0:3] == '230':
+            LoggedInFlag = True
             break
 
     return
@@ -289,3 +303,4 @@ while 1:
         print(FTPCommand(UserInput,''))
     
 ControlSocket.close()
+ControlConectionFlag = False
