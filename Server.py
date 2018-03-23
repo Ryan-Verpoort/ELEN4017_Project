@@ -64,12 +64,12 @@ class FTP_Threading(threading.Thread):
                 continue
             
             elif Command == 'LIST':
-                print str(self.UserPath)
+                #print str(self.UserPath)
                 self.CurrentFileDirectory()
                 continue
             
             elif Command == 'TYPE':
-                self.DataType(Argument,TypeList)
+                self.DataType(Argument)
                 continue
                 
             elif Command == 'PASV':
@@ -148,39 +148,48 @@ class FTP_Threading(threading.Thread):
     #Recive a File From Client
     def Receive_File(self, File_Name):
         #Determine Type of data transfer
-        if(TypeList[0] == True):
+        if(self.TypeList[0] == True):
             Encode_Type = 'UTF-8'
-        elif(TypeList[1]==True):
+        elif(self.TypeList[1]==True):
             Encode_Type = 'cp500'
+        print "storing file"
         
+        Reply1 = ("225 Data connection open; no transfer in progress.\r\n")
+        self.ClientSocket.send(Reply1.encode('UTF-8'))
         #Store files in a folder stuff to see if files are being placed correctly
-        File_Name = 'Stuff/' + File_Name
-        if(TypeList[2] == True):
-            ReceivedData = FileConnectionSocket.recv(8192)
+        File_Name = self.UserPath+ '/' + File_Name
+        if(self.TypeList[2] == True):
+            ReceivedData = self.DataSocket.recv(8192)
             File =  open(File_Name,'wb')
             
             while ReceivedData:
+                print "Receiving..."
                 File.write(ReceivedData)
-                ReceivedData = FileConnectionSocket.recv(8192)
+                ReceivedData =self.DataSocket.recv(8192)
         else:
-            ReceivedData = FileConnectionSocket.recv(8192).decode(Encode_Type)
+            ReceivedData = self.DataSocket.recv(8192).decode(Encode_Type)
             File =  open(File_Name,'wb')
             
             while ReceivedData:
+                print "Receiving..."
                 File.write(ReceivedData)
-                ReceivedData = FileConnectionSocket.recv(8192).decode(Encode_Type)
+                ReceivedData = self.DataSocket.recv(8192).decode(Encode_Type)
         File.close()
-        Reply = '226 Successfully transferred \"' + File_Name + '\"'
-        self.ClientSocket.send(Reply.encode('UTF-8'))
-        self.FileConnectionSocket.close()
+        Reply2 = '226 Successfully transferred \"' + File_Name + '\"'
+        self.DataSocket.close()
+        self.ClientSocket.send(Reply2.encode('UTF-8'))
         
+        
+        for i in xrange(0, len(self.TypeList)):
+            self.TypeList[i] = False
+        self.TypeList[0] = True
         return
     
     def Transmit_File(self, File_Name):
         # Check if file exists
-        if(TypeList[0] == True):
+        if(self.TypeList[0] == True):
             Encode_Type = 'UTF-8'
-        elif(TypeList[1]==True):
+        elif(self.TypeList[1]==True):
             Encode_Type = 'cp500'
            
         TransmittedFile = open(File_Name,'rb')
@@ -200,7 +209,10 @@ class FTP_Threading(threading.Thread):
         Reply = '226 Successfully transferred \"' + File_Name + '\"\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         self.DataSocket.close()
-    
+        
+        for i in xrange(0, len(self.TypeList)):
+            self.TypeList[i] = False
+        self.TypeList[0] = True
         return
         
     #NOOP command returns 200 Ok
@@ -233,13 +245,13 @@ class FTP_Threading(threading.Thread):
     #Change the data type for file transfers
     def DataType(self,Type):
         for i in xrange(0, len(self.TypeList)):
-            TypeList[i] = False
+            self.TypeList[i] = False
         if(Type == 'A'):
-            TypeList[0] = True
+            self.TypeList[0] = True
         elif(Type == 'E'):
-            TypeList[1] = True
+            self.TypeList[1] = True
         elif(Type == 'I'):
-            TypeList[2] = True
+            self.TypeList[2] = True
         else:
             Reply = '400 Type ' + Type + ' not supported'
             self.ClientSocket.send(Reply)
@@ -256,7 +268,7 @@ class FTP_Threading(threading.Thread):
         FileTransferSocket.bind(('0.0.0.0', 0))
         FileTransferSocket.listen(1)
         DataPort = FileTransferSocket.getsockname()[1]
-        print DataPort
+        #print DataPort
         #DataPort is a value of 256 get remainder    
         p2 = DataPort % 256
         #Subtract remainder to ensure its a multiple of 256

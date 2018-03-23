@@ -38,6 +38,7 @@ class Client(object):
         else:
             FTP_CMD = str(Command) + ' ' + str(Argument) + '\r\n'
         self.ControlSocket.send(FTP_CMD.encode('UTF-8'))
+        self.command = FTP_CMD
         ServerReply = self.ControlSocket.recv(8192).decode('UTF-8')
         self.command = FTP_CMD
         self.server_reply = ServerReply 
@@ -65,7 +66,7 @@ class Client(object):
         elif(self.TypeList[1]==True):
             Encode_Type = 'cp500'
         
-        Reply = FTPCommand('RETR', File_Name)
+        Reply = self.FTPCommand('RETR', File_Name)
         print('Control connection reply: \n' + str(Reply))
         
         if Reply[0] != '5':
@@ -99,26 +100,29 @@ class Client(object):
             Encode_Type = 'cp500'
         print(self.TypeList)
         
-        Reply= FTPCommand('STOR',File_Name)
-        print('Control connection reply: \n' + str(Reply))
+        Reply= self.FTPCommand('STOR',File_Name)
         self.servermsg = Reply
         TransmittedFile = open(self.UserPath+'/'+File_Name,'rb')
         if Reply[0] != '5':
-            if(TypeList[2]==True):
+            if(self.TypeList[2]==True):
                 Reading = TransmittedFile.read(8192)
                 while (Reading):
                     self.DataSocket.send(Reading)
                     Reading = TransmittedFile.read(8192)
+                    print "Sending..."
             else:
-                Reading = self.DataSocket.read(8192).encode(Encode_Type)
+                Reading = TransmittedFile.read(8192).encode(Encode_Type)
                 while (Reading):
                     self.DataSocket.send(Reading)
-                    Reading = self.DataSocket.read(8192).encode(Encode_Type)
+                    Reading = TransmittedFile.read(8192).encode(Encode_Type)
+                    print "Sending..."
             TransmittedFile.close()
         
-        Reply = ControlSocket.recv(8192).decode('UTF-8')
+        self.DataSocket.shutdown(socket.SHUT_WR)
+        Reply = self.ControlSocket.recv(8192).decode('UTF-8')
         
-        self.servermsg = Reply
+        self.server_reply = Reply
+        print Reply
         self.DataSocket.close()
         
         return
@@ -188,17 +192,16 @@ class Client(object):
 
     #Login(Port,Host)
     #[A,E,I]
-    def DataType(self):
-        Type = raw_input('Type: ')
-        for i in xrange(0, len(TypeList)):
-            TypeList[i] = False
+    def DataType(self, Type):
+        for i in xrange(0, len(self.TypeList)):
+            self.TypeList[i] = False
         if(Type == 'E'):
-            TypeList[1] = True
+            self.TypeList[1] = True
         elif(Type == 'I'):
-            TypeList[2] = True
+            self.TypeList[2] = True
         else:
-            TypeList[0] = True
-        print(FTPCommand('TYPE',Type))
+           self.TypeList[0] = True
+        print(self.FTPCommand('TYPE',Type))
         return
 
     def Disconnect(self):
@@ -230,6 +233,8 @@ def getType(File_Name):
     extensionIndex = File_Name.find(".")
     extension = File_Name [extensionIndex:end]
     if extension in EXTENSION:
-        return EXTENSION[extension]
+        string = EXTENSION[extension]
+        print string
+        return string
     print "Only Processing .jpeg .png .mp4 .txt"
     return "" 

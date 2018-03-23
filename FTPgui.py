@@ -289,9 +289,8 @@ class App:
     def UploadCommands(self):
         try:
             file = str(self.uploadlist.get(self.uploadlist.curselection()))
-            print "Uploading " +name
             # Set Type
-            self.client.DataType(findType(getEncoding(file)))
+            self.client.DataType(getType(file))
             self.addClientCommandText(self.client.command)
             self.addServerReplyText(self.client.server_reply)
             # Set Data Conn
@@ -299,11 +298,12 @@ class App:
             self.addClientCommandText(self.client.command)
             self.addServerReplyText(self.client.server_reply)
             # Upload File
-            self.client.TransmitFile(file)
+            self.client.Transmit_File(file)
             print "Uploading: " + str(file)
             # send + receive msg
             self.addClientCommandText(self.client.command)
             self.addServerReplyText(self.client.server_reply)
+        
         except:
             print "No item selected."
 
