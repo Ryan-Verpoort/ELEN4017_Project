@@ -3,6 +3,7 @@ import threading
 import os
 import sys
 from FileRW import *
+import shutil
 
 Port = 2500
 Host = '127.0.0.1'
@@ -43,6 +44,7 @@ class FTP_Client(threading.Thread):
         self.Host = Host
         self.UserPath = os.path.abspath(os.path.join(os.path.sep,script_dir,"ClientDatabase"))
         self.UserParentDir = os.path.abspath(os.path.join(os.path.sep,script_dir,"ClientDatabase"))
+        #self.fsHandler = FileSocketHandler()
         
         self.type = FTP_TYPE["A"]
         # For User Login
@@ -186,11 +188,15 @@ class FTP_Client(threading.Thread):
             ReplyMsg = "230 User logged in, proceed."
             self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,self.username))
             self.UserParentDir = os.path.abspath(os.path.join(os.path.sep,self.UserParentDir,self.username))
+            os.chdir(self.UserParentDir)
         else:
             ReplyMsg = "530 Not logged in."
         print str(self.UserParentDir)
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
+        self.getUserPath()
         
+    def getUserPath(self):
+        print self.UserPath
     # -----------------------------------
     # in - File_Name:string
     # This function does the following:
@@ -202,34 +208,34 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def Receive_File(self, File_Name):
       
-        Reply1 = ("225 Data connection open; no transfer in progress.")
+        Reply1 = ("225 Data connection open; no transfer in progress.\r\n")
         self.ClientSocket.send(Reply1.encode('UTF-8'))
         
-        File_Name = self.UserPath+ '/' + File_Name
+        File_Name = str(self.UserPath)+ '/' + File_Name
         ReadFromSocket(self.DataSocket, File_Name, self.type)
        
         self.type = FTP_TYPE["A"]
         self.DataSocket.close()
         
-        Reply2 = '226 Successfully transferred \"' + File_Name + '\"'
+        Reply2 = '226 Successfully transferred \"' + File_Name + '\"\r\n'
         self.ClientSocket.send(Reply2.encode('UTF-8'))
 
         return
     
     def Transmit_File(self, File_Name):
-       
         
-        Reply1 = ("225 Data connection open; no transfer in progress.")
+        Reply1 = ("225 Data connection open; no transfer in progress.\r\n")
         self.ClientSocket.send(Reply1.encode('UTF-8'))
         
-        File_Name = self.UserPath+ '/'+str(File_Name)
+        File_Name = str(self.UserPath)+ '/'+str(File_Name)
         WriteToSocket(self.DataSocket, File_Name, self.type)
         
-        Reply = '226 Successfully transferred \"' + File_Name + '\"'
-        self.ClientSocket.send(Reply.encode('UTF-8'))
+        self.type = FTP_TYPE["A"]
         self.DataSocket.close()
         
-        self.type = FTP_TYPE["A"]
+        Reply = '226 Successfully transferred \"' + File_Name + '\"\r\n'
+        self.ClientSocket.send(Reply.encode('UTF-8'))
+        
         return
         
     # NOOP command returns 200 Ok
@@ -267,17 +273,9 @@ class FTP_Client(threading.Thread):
             Reply = '200 Type set to ' + Type
         else:
             Reply = '400 Type ' + Type + ' not supported'
-        self.ClientSocket.send(Reply)
+        print "Data"
+        self.ClientSocket.send(Reply.encode('UTF-8'))
         return
-       
-    def TYPE(self,Type):
-        #if true let user choose type
-        if Type in FTP_TYPE:
-            self.type = FTP_TYPE[Type]
-            return FTP_SM["OKAY"]
-        else:
-            return FTP_SM["BPARA"]
-            #504 Command not implemented for that parameter.
     
     # Implement Passive Mode which initilises the socket to be used
     def PassiveMode(self):
@@ -302,24 +300,28 @@ class FTP_Client(threading.Thread):
     
     # Changes for all users needs to be fixed
     def ChangeDirectory(self,DirectoryName):
-        if os.path.isdir(DirectoryName):
-            self.UserPath = os.path.abspath(os.path.join(os.path.sep,UserPath,DirectoryName))
+        if os.path.isdir(self.UserPath+"/"+str(DirectoryName)):
+            self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
             Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.'
         else :
             Reply = '550 \"' + DirectoryName + '\"does not exsist.'
         self.ClientSocket.send(Reply.encode('UTF-8'))
+        self.getUserPath()
         return
     
     def MakeDirectory(self,DirectoryName):
-        os.mkdir(DirectoryName)
+        os.mkdir(self.UserPath+"/"+DirectoryName)
         Reply = '257 \"' + DirectoryName + '\" created successfully'
         self.ClientSocket.send(Reply.encode('UTF-8'))
+        self.getUserPath()
         return
     
     def RemoveDirectory(self,DirectoryName):
-        os.rmdir(DirectoryName)
+        shutil.rmtree(self.UserPath+"/"+DirectoryName) # Removes folder and all its contents
+        #os.rmdir(DirectoryName)
         Reply = '250 \"' + DirectoryName + '\" deleted successfully.'
         self.ClientSocket.send(Reply.encode('UTF-8'))
+        self.getUserPath()
         return
 
     def ParentDirectory(self):

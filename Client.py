@@ -38,7 +38,7 @@ class Client(object):
         self.username = ""
         self.server_reply = ""
         self.command = ""
-        
+        #self.fsHandler = FileSocketHandler()
         # FTP information
         self.Port = 2500
         self.Host = '127.0.0.1' #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
@@ -85,27 +85,29 @@ class Client(object):
        
         self.FTPCommand('RETR', File_Name)
         
-        if self.server_reply != '5':
-            File_Name = self.UserPath+"/"+File_Name
+        if not self.server_reply[0] == '5':
+            File_Name = str(self.UserPath)+ '/' + File_Name
             ReadFromSocket(self.DataSocket, File_Name, self.type)
             
         self.server_reply = self.ControlSocket.recv(8192).decode('UTF-8')
-        
         self.DataSocket.close()
         self.type = FTP_TYPE["A"]
+        self.DataConnectionFlag = False
         return
 
     def Transmit_File(self, File_Name):
         
         self.FTPCommand('STOR',File_Name)
-     
-        if self.server_reply[0] != '5':
-            File_Name = self.UserPath+'/'+File_Name
-            WriteToSocket(self.DataSocket, File_Name, self.Type)
+        if not self.server_reply[0] == '5':
+            File_Name = str(self.UserPath)+ '/' + str(File_Name)
+            print File_Name
+            WriteToSocket(self.DataSocket, File_Name, self.type)
         
         self.DataSocket.shutdown(socket.SHUT_WR)
         self.server_reply = self.ControlSocket.recv(8192).decode('UTF-8')
         self.DataSocket.close()
+        self.type = FTP_TYPE["A"]
+        self.DataConnectionFlag = False
         return
         
     def NoAction(self):
@@ -123,6 +125,7 @@ class Client(object):
             DataReply = DataReply.split('\n')
     
         self.DataSocket.close()
+        self.DataConnectionFlag = False
         return DataReply
 
     def passiveMode(self):
@@ -140,6 +143,7 @@ class Client(object):
         
         self.DataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.DataSocket.connect((Host,Port))
+        self.DataConnectionFlag = True
 
     def GetHelp(self):
         self.FTPCommand('HELP',Input)
@@ -170,9 +174,11 @@ class Client(object):
     def DataType(self, Type):
         if Type in FTP_TYPE:
             self.type = FTP_TYPE[Type]
+            
         else:
             self.type = FTP_TYPE["A"]
             print "type argument not implemented-- Setting to default type"
+        self.FTPCommand("TYPE",Type)
         return
 
     def Disconnect(self):

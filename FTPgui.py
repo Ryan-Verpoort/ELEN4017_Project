@@ -123,20 +123,24 @@ class App:
         self.downloadlist.grid(row=1,column=2,rowspan=5)
         scrollbar.config(command=self.downloadlist.yview)
         
+        # setup connection
         self.client.passiveMode()
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
-        
+        if self.client.DataConnectionFlag:
+            self.can2.itemconfig(self.transferStatus,fill="green")
         serverList = self.client.FileDirectory()
        
         for filename in serverList:
-            if str(filename)[0:1] == "." or str(filename)=="":
+            if str(filename)[0:1] == ".":
                 continue
             x = str(filename)
             self.downloadlist.insert(END,x)
             
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
+        if not self.client.DataConnectionFlag:
+            self.can2.itemconfig(self.transferStatus,fill="red")
         
     #can 7 
     def ShowClientCommandsUI(self):
@@ -246,10 +250,13 @@ class App:
         self.UpdateDownloadButton.grid(row=12,column=1,columnspan=3)
         
         self.FolderChangeButtonServer=Button(self.can6, text=">", width=1, font=("Times", 15))
-        self.FolderChangeButtonServer.grid(row=11,column=4)
+        self.FolderChangeButtonServer.grid(row=10,column=4)
         
         self.HomeButtonServer=Button(self.can6, text="H", width=1, font=("Times", 15))
-        self.HomeButtonServer.grid(row=12,column=4)
+        self.HomeButtonServer.grid(row=11,column=4)
+        
+        self.AddFolderButton=Button(self.can6, text="+", width=1, font=("Times", 15))
+        self.AddFolderButton.grid(row=12,column=4)
 
 
     def ConnectCommands(self):
@@ -286,6 +293,10 @@ class App:
                 self.HideLoginUI()
                 self.ShowUploadListUI()
                 self.ShowDownloadListUI()
+                # Change directory into user
+                self.client.ChangeDirectory(self.client.username)
+                self.addClientCommandText(self.client.command)
+                self.addServerReplyText(self.client.server_reply)
         
     def Login(self):    
         u=self.username.get()
@@ -303,31 +314,8 @@ class App:
         self.passphrase.delete(0,END)
         
     def UploadCommands(self):
-        try:
-            file = str(self.uploadlist.get(self.uploadlist.curselection()))
-            # Set Type
-            self.client.DataType(getType(file))
-            self.addClientCommandText(self.client.command)
-            self.addServerReplyText(self.client.server_reply)
-            # Set Data Conn
-            self.client.passiveMode()
-            self.addClientCommandText(self.client.command)
-            self.addServerReplyText(self.client.server_reply)
-            # Upload File
-            self.client.Transmit_File(file)
-            print "Uploading: " + str(file)
-            # send + receive msg
-            self.addClientCommandText(self.client.command)
-            self.addServerReplyText(self.client.server_reply)
         
-        except:
-            #print "No item selected."
-            pass
-
-    def DownloadCommands(self):
-        
-        file =str(self.downloadlist.get(self.downloadlist.curselection()))
-        print "Downloading " +file
+        file = str(self.uploadlist.get(self.uploadlist.curselection()))
         # Set Type
         self.client.DataType(getType(file))
         self.addClientCommandText(self.client.command)
@@ -336,56 +324,100 @@ class App:
         self.client.passiveMode()
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
-        # Download File
-        self.client.Receive_File(file)
+        if self.client.DataConnectionFlag:
+            print "Yay uploading"
+            self.can2.itemconfig(self.transferStatus,fill="green")
+        # Upload File
+        self.client.Transmit_File(file)
+        print "Uploading: " + str(file)
+        # send + receive msg
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
-        # os.system("cp DownloadFolder/"+str(name)+" UploadFolder") #hacks}
+        self.UpdateDownloadListUI()
+        if not self.client.DataConnectionFlag:
+            self.can2.itemconfig(self.transferStatus,fill="red")
+        
         #except:
-        #print "No item selected."
+         #   print "No item selected."
+            
 
-    #send command to server, then getNewList
-    #mimic = delete, then update
+    def DownloadCommands(self):
+        
+        name = str(self.downloadlist.get(self.downloadlist.curselection()))
+        isfile = isFile(name)
+        if isfile:
+            print "Downloading " +name
+            # Set Type
+            self.client.DataType(getType(name))
+            self.addClientCommandText(self.client.command)
+            self.addServerReplyText(self.client.server_reply)
+            # Set Data Conn
+            self.client.passiveMode()
+            self.addClientCommandText(self.client.command)
+            self.addServerReplyText(self.client.server_reply)
+            if self.client.DataConnectionFlag:
+                print "Yay downloading"
+                self.can2.itemconfig(self.transferStatus,fill="green")
+            # Download File
+            self.client.Receive_File(name)
+            self.addClientCommandText(self.client.command)
+            self.addServerReplyText(self.client.server_reply)
+            
+            self.UpdateUploadListUI()
+            if not self.client.DataConnectionFlag:
+                self.can2.itemconfig(self.transferStatus,fill="red")
+            
+
     def ServerDeleteCommands(self):
         
-        #try:
+        ## try to delete file ##
         name = str(self.downloadlist.get(self.downloadlist.curselection()))
-        self.client.RemoveDirectory(name)
-        print "Deleted file from: " +str(name)
-        self.UpdateDownloadListUI()
-        self.addClientCommandText(self.client.command)
-        self.addServerReplyText(self.client.server_reply)
-        #except:
-            #print "No selected item." 
-            #pass
+        Removed = False
+        print name
+        
+        isfile = isFile(name)
 
+        if isfile:
+            self.client.DeleteFile(name)
+            Removed = True
+            print "Deleted file: " +str(name)
+        else:
+            self.client.RemoveDirectory(name)
+            Removed = True
+            print "Deleted folder:" +str(name) 
+             
+        if Removed == True:
+            self.UpdateDownloadListUI()
+            self.addClientCommandText(self.client.command)
+            self.addServerReplyText(self.client.server_reply)
+    
     def ServerAddDirCommands(self):
         try:
-            name = "DownloadFolder/"+str(self.downloadlist.get(self.downloadlist.curselection()))
+            name = str(self.downloadlist.get(self.downloadlist.curselection()))
             os.remove(name)
             print "Deleted file from: " +str(name)
             self.UpdateDownloadListUI()
             self.addClientCommandText("Delete the selected file yo")
-
             self.addServerReplyText("Deleted the selected file :D")
         except:
             print "No selected item." 
         
     #If client wants to delete their own folders for convience
     def UploadDeleteCommands(self):
-        x=""
         try:
             name = self.client.UserPath+'/'+str(self.uploadlist.get(self.uploadlist.curselection()))
-            x=name
+            
             print name
             os.remove(name)
+            self.UpdateUploadListUI() 
             print "Deleted file from: " +str(name)
         except:
-            print x
             print "No selected item."
-            
-        self.UpdateUploadListUI() 
-
+    
+    def CHDirCommands(self):
+        pass
+    def HomeDirCommands(self):
+        pass
     def bindButtons(self):
         self.LoginButton.config(command=self.LoginCommands)
         self.ConnectButton.config(command=self.ConnectCommands)
@@ -396,6 +428,10 @@ class App:
         self.DeleteDownloadButton.config(command=self.ServerDeleteCommands)
         self.UpdateDownloadButton.config(command=self.UpdateDownloadListUI)
         self.DeleteUploadButton.config(command=self.UploadDeleteCommands)
+        
+        self.AddFolderButton.config(command=self.ServerAddDirCommands)
+        self.FolderChangeButtonServer.config(command=self.CHDirCommands)
+        self.HomeButtonServer.config(command=self.HomeDirCommands)
 
     def addClientCommandText(self, text):
         self.clientCommandsList.insert(END, text)
@@ -405,7 +441,13 @@ class App:
         self.serverRepliesList.insert(END, text)
         self.serverRepliesList.see(END)
 
-
+def isFile(name):
+    for char in name:
+        if char == ".":
+            return True
+    return False
+    
+    
 root = Tk()
 app= App(root)
 root.mainloop()
