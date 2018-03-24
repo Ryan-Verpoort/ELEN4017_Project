@@ -2,16 +2,35 @@ import socket
 import threading
 import os
 import sys
+from FileRW import *
 
 Port = 2500
 Host = '127.0.0.1'
 
 script_dir = os.getcwd()
 
-#TypeList to determine what typeof data encoding to be used
 LoginDetails = {"user": "123"}
 
-class FTP_Threading(threading.Thread):
+        
+FTP_TYPE = {
+    "A": "UTF-8",
+    "E": "cp500",
+    "I": "None"
+}
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# This class has the responsibilty of handling a clients connections to the server: 
+#   -> control connection
+#   -> data connection
+#
+# Multiple FTP_Client threads can be run in parallel, which is created by the main server socket.
+#
+# On a side note:
+#       We have made our FTP server run in a purely passive mode.
+#       This means that the client always connects to the server.
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+class FTP_Client(threading.Thread):
     
     def __init__(self,ClientSocket,ClientAddress):
         threading.Thread.__init__(self)
@@ -25,7 +44,7 @@ class FTP_Threading(threading.Thread):
         self.UserPath = os.path.abspath(os.path.join(os.path.sep,script_dir,"ClientDatabase"))
         self.UserParentDir = os.path.abspath(os.path.join(os.path.sep,script_dir,"ClientDatabase"))
         
-        self.TypeList = [True,False,False]
+        self.type = FTP_TYPE["A"]
         # For User Login
         self.loginFlag = False
         self.usernameFlag = False
@@ -33,7 +52,14 @@ class FTP_Threading(threading.Thread):
       
         print ('Connection request from address: ' + str(self.ClientAddress))
         
-    
+    # -----------------------------------
+    # This function is the main entry for the thread and it does the following:
+    #   -> constantly checks for the clients commands.
+    #   -> splits the command into 2 strings
+    #   -> checks if the commands been implemented
+    #       - if true = execute
+    #       - else = wait for next client command
+    # -----------------------------------
     def run(self):
         while 1:
             Input = self.ClientSocket.recv(4096).decode('UTF-8')
@@ -105,10 +131,16 @@ class FTP_Threading(threading.Thread):
                 
         self.ClientSocket.close()
         
-    #Formatting of Input arguments for server to decide what must be done
+    # -----------------------------------
+    # in- Input which is a string
+    # out- Command, Argument which are both strings
+    # -----------------------------------
+    # This function does the following: 
+    #   -> splits up the command line
+    # -----------------------------------
     def InputArgument(self,Input):
+        
         SpacePosition = Input.find(' ')
-        #Look for Space determine if command has arguments
         if(SpacePosition != -1):
             Command = Input[0:SpacePosition]
             End = Input.find('\r\n')
@@ -119,107 +151,88 @@ class FTP_Threading(threading.Thread):
             Argument = ''
         return Command,Argument
     
+    # -----------------------------------
+    # in- username:string
+    # -----------------------------------
+    # This function does the following:
+    #   -> checks the username against the LoginDetails
+    #   -> sets a username flag
+    #   -> sends appropriate response to client
+    # -----------------------------------
     def USER(self, username):
         # Check if username is good
         if username in LoginDetails.keys():
             self.username = username
             self.usernameFlag = True
-            ReplyMsg = "331  User name okay, need password.\r\n" 
+            ReplyMsg = "331  User name okay, need password." 
         else: 
             self.usernameFlag = False
-            ReplyMsg = "332 Need account for login.\r\n"
+            ReplyMsg = "332 Need account for login."
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
-                
+    
+    # -----------------------------------
+    # in- password:string
+    # -----------------------------------
+    # This function does the following:
+    #   -> checks the username against the LoginDetails
+    #   -> sets a username flag
+    #   -> sends appropriate response to client
+    # -----------------------------------
     def PASS(self, password):
         if self.loginFlag or not self.usernameFlag:
-            ReplyMsg = "451 Requested action aborted: local error in processing.\r\n"
+            ReplyMsg = "451 Requested action aborted: local error in processing."
         elif (password == LoginDetails[self.username]):
             self.loginFlag = True
-            
-            ReplyMsg = "230 User logged in, proceed.\r\n"
+            ReplyMsg = "230 User logged in, proceed."
             self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,self.username))
             self.UserParentDir = os.path.abspath(os.path.join(os.path.sep,self.UserParentDir,self.username))
         else:
-            ReplyMsg = "530 Not logged in.\r\n"
+            ReplyMsg = "530 Not logged in."
         print str(self.UserParentDir)
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
         
-            
-    #Recive a File From Client
+    # -----------------------------------
+    # in - File_Name:string
+    # This function does the following:
+    #   -> sends a reply to the client: that the data connection is ready
+    #   -> stores the file received from the client
+    #   -> closes the data connection
+    #   -> sends a reply to the client: that the transfer was successful
+    #   -> resets the type
+    # -----------------------------------
     def Receive_File(self, File_Name):
-        #Determine Type of data transfer
-        if(self.TypeList[0] == True):
-            Encode_Type = 'UTF-8'
-        elif(self.TypeList[1]==True):
-            Encode_Type = 'cp500'
-        print "storing file"
-        
-        Reply1 = ("225 Data connection open; no transfer in progress.\r\n")
+      
+        Reply1 = ("225 Data connection open; no transfer in progress.")
         self.ClientSocket.send(Reply1.encode('UTF-8'))
-        #Store files in a folder stuff to see if files are being placed correctly
+        
         File_Name = self.UserPath+ '/' + File_Name
-        if(self.TypeList[2] == True):
-            ReceivedData = self.DataSocket.recv(8192)
-            File =  open(File_Name,'wb')
-            
-            while ReceivedData:
-                print "Receiving..."
-                File.write(ReceivedData)
-                ReceivedData =self.DataSocket.recv(8192)
-        else:
-            ReceivedData = self.DataSocket.recv(8192).decode(Encode_Type)
-            File =  open(File_Name,'wb')
-            
-            while ReceivedData:
-                print "Receiving..."
-                File.write(ReceivedData)
-                ReceivedData = self.DataSocket.recv(8192).decode(Encode_Type)
-        File.close()
-        Reply2 = '226 Successfully transferred \"' + File_Name + '\"'
+        ReadFromSocket(self.DataSocket, File_Name, self.type)
+       
+        self.type = FTP_TYPE["A"]
         self.DataSocket.close()
+        
+        Reply2 = '226 Successfully transferred \"' + File_Name + '\"'
         self.ClientSocket.send(Reply2.encode('UTF-8'))
-        
-        
-        for i in xrange(0, len(self.TypeList)):
-            self.TypeList[i] = False
-        self.TypeList[0] = True
+
         return
     
     def Transmit_File(self, File_Name):
-        # Check if file exists
-        if(self.TypeList[0] == True):
-            Encode_Type = 'UTF-8'
-        elif(self.TypeList[1]==True):
-            Encode_Type = 'cp500'
+       
         
-        print str(self.UserPath+ '/'+str(File_Name))  
-        TransmittedFile = open(self.UserPath+ '/'+str(File_Name),'rb')
-        
-        Reply1 = ("225 Data connection open; no transfer in progress.\r\n")
+        Reply1 = ("225 Data connection open; no transfer in progress.")
         self.ClientSocket.send(Reply1.encode('UTF-8'))
         
-        if(self.TypeList[2]==True):
-            Reading = TransmittedFile.read(8192)
-            while (Reading):
-                self.DataSocket.send(Reading)
-                Reading = TransmittedFile.read(8192)
-        else:
-            Reading = TransmittedFile.read(8192).encode(Encode_Type)
-            while (Reading):
-                self.DataSocket.send(Reading)
-                Reading = TransmittedFile.read(8192).encode(Encode_Type)
-                
-        TransmittedFile.close()
-        Reply = '226 Successfully transferred \"' + File_Name + '\"\r\n'
+        File_Name = self.UserPath+ '/'+str(File_Name)
+        WriteToSocket(self.DataSocket, File_Name, self.type)
+        
+        Reply = '226 Successfully transferred \"' + File_Name + '\"'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         self.DataSocket.close()
         
-        for i in xrange(0, len(self.TypeList)):
-            self.TypeList[i] = False
-        self.TypeList[0] = True
+        self.type = FTP_TYPE["A"]
         return
         
-    #NOOP command returns 200 Ok
+    # NOOP command returns 200 Ok
     def NoAction(self):
         Input = '200 OK'
         self.ClientSocket.send(Input.encode('UTF-8'))
@@ -229,7 +242,7 @@ class FTP_Threading(threading.Thread):
     #List all files and folders in current directory
     def CurrentFileDirectory(self):
         DirectoryName = os.path.basename(self.UserPath)
-        Files = 'Files in Current Directory : \"' + DirectoryName + '\r\n'
+        Files = 'Files in Current Directory : \"' + DirectoryName + ''
         FileDirectory = os.listdir(self.UserPath)
         
         files = ""
@@ -241,58 +254,51 @@ class FTP_Threading(threading.Thread):
         self.DataSocket.close()
         #self.DataSocket, self.DataAddress = FileTransferSocket.accept()
         #ReplyCode = ("225 Data connection open; no transfer in progress.\r\n")
-        Reply = '226 Successfully transferred list of current working directory\"\r\n'
+        Reply = '226 Successfully transferred list of current working directory\"'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         #print(UserPath)
         return
         
     #Change the data type for file transfers
     def DataType(self,Type):
-        for i in xrange(0, len(self.TypeList)):
-            self.TypeList[i] = False
-        if(Type == 'A'):
-            self.TypeList[0] = True
-        elif(Type == 'E'):
-            self.TypeList[1] = True
-        elif(Type == 'I'):
-            self.TypeList[2] = True
+        #if true let user choose type
+        if Type in FTP_TYPE:
+            self.type = FTP_TYPE[Type]
+            Reply = '200 Type set to ' + Type
         else:
             Reply = '400 Type ' + Type + ' not supported'
-            self.ClientSocket.send(Reply)
-            return
-        Reply = '200 Type set to ' + Type
         self.ClientSocket.send(Reply)
-        print(Reply)
         return
+       
+    def TYPE(self,Type):
+        #if true let user choose type
+        if Type in FTP_TYPE:
+            self.type = FTP_TYPE[Type]
+            return FTP_SM["OKAY"]
+        else:
+            return FTP_SM["BPARA"]
+            #504 Command not implemented for that parameter.
     
-    #Implement Passive Mode which initilises the socket to be used
+    # Implement Passive Mode which initilises the socket to be used
     def PassiveMode(self):
         FileTransferSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         FileTransferSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         FileTransferSocket.bind(('0.0.0.0', 0))
         FileTransferSocket.listen(1)
         DataPort = FileTransferSocket.getsockname()[1]
-        #print DataPort
+        
         #DataPort is a value of 256 get remainder    
         p2 = DataPort % 256
         #Subtract remainder to ensure its a multiple of 256
         p1 = (DataPort -p2)/256
         
-        #Replace dots with commas to meet standards
         self.Host = self.Host.replace('.',',')
-        
-        Message = ( '227 Entering Passive Mode (' + self.Host +',' + str(p1) + ',' +str(p2) + ')\r\n' )
+        Message = ( '227 Entering Passive Mode (' + self.Host +',' + str(p1) + ',' +str(p2) + ')' )
         self.ClientSocket.send(Message.encode("UTF-8"))
-        #self.DataSocket, self.DataAddress
-        #ReplyCode = ('150 File status okay about to open data connection.\r\n')
-        #self.ClientSocket.send(ReplyCode.encode('UTF-8'))
-        
         self.DataSocket, self.DataAddress = FileTransferSocket.accept()
-        #ReplyCode = ("225 Data connection open; no transfer in progress.\r\n")
         
-        #self.ClientSocket.send(ReplyCode.encode('UTF-8'))
         FileTransferSocket.close()
-        #return DataConnection, DataAddress
+        
     
     # Changes for all users needs to be fixed
     def ChangeDirectory(self,DirectoryName):
@@ -342,5 +348,5 @@ ControlSocket.bind((Host, Port))
 while True:
     ControlSocket.listen(3)
     ControlConnection, ClientAddress = ControlSocket.accept()
-    newthread = FTP_Threading(ControlConnection,ClientAddress)
+    newthread = FTP_Client(ControlConnection,ClientAddress)
     newthread.start()

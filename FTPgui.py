@@ -27,9 +27,10 @@ class App:
         self.can1 = Canvas(self.master, width=350, height=150, bg="grey")
 
         #can2 = server status
-        self.can2 = Canvas(self.master, width=125, height=100, bg="grey")
+        self.can2 = Canvas(self.master, width=125, height=110, bg="grey")
         self.connectIndicator   = self.can2.create_oval(10, 10, 30, 30, fill="red", width=0)
         self.loginIndicator     = self.can2.create_oval(10, 50, 30, 70, fill="red", width=0)
+        self.transferStatus     = self.can2.create_oval(10, 90, 30, 110, fill="red", width=0)
         self.ShowServerStatus1()
 
         #can3 = connect screen
@@ -180,6 +181,7 @@ class App:
         T12 = "Update"
         T13 = "Download item"
         T14 = "Delete item"
+        T15 = "Transfer"
 
     #create and place labels
         T1L  = Label(self.master, text=T1 , font=("Times", 30), justify=LEFT)
@@ -188,6 +190,7 @@ class App:
         T5L  = Label(self.can2, text=T5 , font=("Times", 15), justify=LEFT)
         T6L  = Label(self.can2, text=T6 , font=("Times", 15), justify=LEFT)
         T7L  = Label(self.master, text=T7 , font=("Times", 20), justify=LEFT)
+        T15L = Label(self.can2, text=T15 , font=("Times", 15), justify=LEFT)
         #T10L  = Label(self.can2, text=T10, font=("Times", 15), justify=LEFT)
 
         T1L.place(  x=10 , y=10)
@@ -197,6 +200,7 @@ class App:
         T6L.place(  x=40 , y=50)
         T7L.place(  x=350, y=20)
         #T10L.place( x=40 , y=90)
+        T15L.place( x=40 , y=90)
    
     #create entry fields for username and password
         self.username=Entry(self.can1, width=20, font=("Times", 20))
@@ -224,6 +228,12 @@ class App:
 
         self.DeleteUploadButton=Button(self.can5, text=T14, width=10, font=("Times", 15))
         self.DeleteUploadButton.grid(row=12,column=1,columnspan=3)
+        
+        self.FolderChangeButtonClient=Button(self.can5, text=">", width=1, font=("Times", 15))
+        self.FolderChangeButtonClient.grid(row=11,column=4)
+        
+        self.HomeButtonClient=Button(self.can5, text="H", width=1, font=("Times", 15))
+        self.HomeButtonClient.grid(row=12,column=4)
 
         # DELETE, DOWNLOAD, UPDATE server stuff
         self.DownloadButton=Button(self.can6, text=T13, width=13, font=("Times", 15))
@@ -232,8 +242,14 @@ class App:
         self.DeleteDownloadButton=Button(self.can6, text=T14, width=13, font=("Times", 15))
         self.DeleteDownloadButton.grid(row=11,column=1,columnspan=3)
 
-        self.UpdateDownloadButton=Button(self.can6, text=T12, width=10, font=("Times", 15))
+        self.UpdateDownloadButton=Button(self.can6, text=T12, width=13, font=("Times", 15))
         self.UpdateDownloadButton.grid(row=12,column=1,columnspan=3)
+        
+        self.FolderChangeButtonServer=Button(self.can6, text=">", width=1, font=("Times", 15))
+        self.FolderChangeButtonServer.grid(row=11,column=4)
+        
+        self.HomeButtonServer=Button(self.can6, text="H", width=1, font=("Times", 15))
+        self.HomeButtonServer.grid(row=12,column=4)
 
 
     def ConnectCommands(self):
@@ -305,7 +321,8 @@ class App:
             self.addServerReplyText(self.client.server_reply)
         
         except:
-            print "No item selected."
+            #print "No item selected."
+            pass
 
     def DownloadCommands(self):
         
@@ -331,15 +348,16 @@ class App:
     #mimic = delete, then update
     def ServerDeleteCommands(self):
         
-        try:
-            name = str(self.downloadlist.get(self.downloadlist.curselection()))
-            client.RemoveDirectory(name)
-            print "Deleted file from: " +str(name)
-            self.UpdateDownloadListUI()
-            self.addClientCommandText(self.client.command)
-            self.addServerReplyText(self.client.server_reply)
-        except:
-            print "No selected item." 
+        #try:
+        name = str(self.downloadlist.get(self.downloadlist.curselection()))
+        self.client.RemoveDirectory(name)
+        print "Deleted file from: " +str(name)
+        self.UpdateDownloadListUI()
+        self.addClientCommandText(self.client.command)
+        self.addServerReplyText(self.client.server_reply)
+        #except:
+            #print "No selected item." 
+            #pass
 
     def ServerAddDirCommands(self):
         try:
@@ -355,12 +373,17 @@ class App:
         
     #If client wants to delete their own folders for convience
     def UploadDeleteCommands(self):
+        x=""
         try:
-            name = self.client.UserPath+str(self.uploadlist.get(self.uploadlist.curselection()))
+            name = self.client.UserPath+'/'+str(self.uploadlist.get(self.uploadlist.curselection()))
+            x=name
+            print name
             os.remove(name)
             print "Deleted file from: " +str(name)
         except:
+            print x
             print "No selected item."
+            
         self.UpdateUploadListUI() 
 
     def bindButtons(self):
