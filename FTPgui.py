@@ -309,24 +309,23 @@ class App:
 
     def DownloadCommands(self):
         
-        try:
-            name =str(self.downloadlist.get(self.downloadlist.curselection()))
-            print "Downloading " +name
-            # Set Type
-            self.client.DataType(findType(name))
-            self.addClientCommandText(self.client.command)
-            self.addServerReplyText(self.client.server_reply)
-            # Set Data Conn
-            self.client.passiveMode()
-            self.addClientCommandText(self.client.command)
-            self.addServerReplyText(self.client.server_reply)
-            # Download File
-            self.client.ReceiveFile(name)
-            self.addClientCommandText(self.client.command)
-            self.addServerReplyText(self.client.server_reply)
-            # os.system("cp DownloadFolder/"+str(name)+" UploadFolder") #hacks
-        except:
-            print "No item selected."
+        file =str(self.downloadlist.get(self.downloadlist.curselection()))
+        print "Downloading " +file
+        # Set Type
+        self.client.DataType(getType(file))
+        self.addClientCommandText(self.client.command)
+        self.addServerReplyText(self.client.server_reply)
+        # Set Data Conn
+        self.client.passiveMode()
+        self.addClientCommandText(self.client.command)
+        self.addServerReplyText(self.client.server_reply)
+        # Download File
+        self.client.Receive_File(file)
+        self.addClientCommandText(self.client.command)
+        self.addServerReplyText(self.client.server_reply)
+        # os.system("cp DownloadFolder/"+str(name)+" UploadFolder") #hacks}
+        #except:
+        #print "No item selected."
 
     #send command to server, then getNewList
     #mimic = delete, then update

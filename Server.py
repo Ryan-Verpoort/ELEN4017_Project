@@ -191,18 +191,22 @@ class FTP_Threading(threading.Thread):
             Encode_Type = 'UTF-8'
         elif(self.TypeList[1]==True):
             Encode_Type = 'cp500'
-           
-        TransmittedFile = open(File_Name,'rb')
         
-        if(TypeList[2]==True):
+        print str(self.UserPath+ '/'+str(File_Name))  
+        TransmittedFile = open(self.UserPath+ '/'+str(File_Name),'rb')
+        
+        Reply1 = ("225 Data connection open; no transfer in progress.\r\n")
+        self.ClientSocket.send(Reply1.encode('UTF-8'))
+        
+        if(self.TypeList[2]==True):
             Reading = TransmittedFile.read(8192)
             while (Reading):
-                self.FileConnectionSocket.send(Reading)
+                self.DataSocket.send(Reading)
                 Reading = TransmittedFile.read(8192)
         else:
             Reading = TransmittedFile.read(8192).encode(Encode_Type)
             while (Reading):
-                self.FileConnectionSocket.send(Reading)
+                self.DataSocket.send(Reading)
                 Reading = TransmittedFile.read(8192).encode(Encode_Type)
                 
         TransmittedFile.close()

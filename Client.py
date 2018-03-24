@@ -71,7 +71,7 @@ class Client(object):
         
         if Reply[0] != '5':
             File_Name = self.UserPath+"/"+File_Name
-            if(TypeList[2] == True):
+            if(self.TypeList[2] == True):
                 ReceivedData = self.DataSocket.recv(8192)
                 File =  open(File_Name,'wb')
             
@@ -87,6 +87,7 @@ class Client(object):
                     
             File.close()
             Reply = self.ControlSocket.recv(8192).decode('UTF-8')
+            self.server_reply = Reply
             print(Reply)
             
         self.DataSocket.close()
@@ -121,7 +122,7 @@ class Client(object):
         self.DataSocket.shutdown(socket.SHUT_WR)
         Reply = self.ControlSocket.recv(8192).decode('UTF-8')
         
-        self.server_reply = Reply
+        self.servermsg = Reply
         print Reply
         self.DataSocket.close()
         
