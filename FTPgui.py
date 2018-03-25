@@ -1,8 +1,10 @@
 from Tkinter import *
 from Client import *
 import math
+import time
 import os
 import shutil
+import tkSimpleDialog
 
 class App:
     
@@ -30,7 +32,7 @@ class App:
         self.can2 = Canvas(self.master, width=125, height=110, bg="grey")
         self.connectIndicator   = self.can2.create_oval(10, 10, 30, 30, fill="red", width=0)
         self.loginIndicator     = self.can2.create_oval(10, 50, 30, 70, fill="red", width=0)
-        self.transferStatus     = self.can2.create_oval(10, 90, 30, 110, fill="red", width=0)
+        self.dataIndicator     = self.can2.create_oval(10, 90, 30, 110, fill="red", width=0)
         self.ShowServerStatus1()
 
         #can3 = connect screen
@@ -65,6 +67,9 @@ class App:
     # can 2: Server Status
     def ShowServerStatus1(self):
         self.can2.place(x=350, y=50)
+        
+    def HideServerStatus1(self):
+        self.can2.place_forget()
 
     # can 3: Connect 
     def ShowConnectUI(self):
@@ -127,8 +132,6 @@ class App:
         self.client.passiveMode()
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
-        if self.client.DataConnectionFlag:
-            self.can2.itemconfig(self.transferStatus,fill="green")
         serverList = self.client.FileDirectory()
        
         for filename in serverList:
@@ -139,8 +142,6 @@ class App:
             
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
-        if not self.client.DataConnectionFlag:
-            self.can2.itemconfig(self.transferStatus,fill="red")
         
     #can 7 
     def ShowClientCommandsUI(self):
@@ -232,12 +233,6 @@ class App:
 
         self.DeleteUploadButton=Button(self.can5, text=T14, width=10, font=("Times", 15))
         self.DeleteUploadButton.grid(row=12,column=1,columnspan=3)
-        
-        self.FolderChangeButtonClient=Button(self.can5, text=">", width=1, font=("Times", 15))
-        self.FolderChangeButtonClient.grid(row=11,column=4)
-        
-        self.HomeButtonClient=Button(self.can5, text="H", width=1, font=("Times", 15))
-        self.HomeButtonClient.grid(row=12,column=4)
 
         # DELETE, DOWNLOAD, UPDATE server stuff
         self.DownloadButton=Button(self.can6, text=T13, width=13, font=("Times", 15))
@@ -262,18 +257,17 @@ class App:
     def ConnectCommands(self):
         #send command to server, receive server response, change color according to status
         if not self.client.ControlConnectionFlag:
-            self.can2.itemconfig(self.connectIndicator,fill="green")
-            self.ShowLoginUI()
+            self.mode2()
             self.ShowDisconnectUI()
             self.HideConnectUI()
+            self.ShowLoginUI()
             self.client.Connect()
             #self.addServerReplyText(self.Client.ServerMsg)
         #self.addServerReplyText("Connecting you to the server ... ")
 
     def DisconnectCommands(self):
         if self.client.ControlConnectionFlag:
-            self.can2.itemconfig(self.connectIndicator,fill="red")
-            self.can2.itemconfig(self.loginIndicator,fill="red")
+            self.mode1()
             self.HideDisconnectUI()
             self.HideLoginUI()
             self.HideUploadListUI()
@@ -289,7 +283,7 @@ class App:
         if self.client.ControlConnectionFlag:
             self.Login()
             if self.client.LoginFlag:
-                self.can2.itemconfig(self.loginIndicator,fill="green")
+                self.mode3()
                 self.HideLoginUI()
                 self.ShowUploadListUI()
                 self.ShowDownloadListUI()
@@ -312,9 +306,9 @@ class App:
         
         self.username.delete(0,END)
         self.passphrase.delete(0,END)
+
         
-    def UploadCommands(self):
-        
+    def UploadCommands(self, event):
         file = str(self.uploadlist.get(self.uploadlist.curselection()))
         # Set Type
         self.client.DataType(getType(file))
@@ -324,25 +318,22 @@ class App:
         self.client.passiveMode()
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
-        if self.client.DataConnectionFlag:
-            print "Yay uploading"
-            self.can2.itemconfig(self.transferStatus,fill="green")
         # Upload File
         self.client.Transmit_File(file)
         print "Uploading: " + str(file)
         # send + receive msg
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
+        
+        print "Turn it RED"
+        self.mode3()
         self.UpdateDownloadListUI()
-        if not self.client.DataConnectionFlag:
-            self.can2.itemconfig(self.transferStatus,fill="red")
+        
         
         #except:
          #   print "No item selected."
-            
-
-    def DownloadCommands(self):
-        
+         
+    def DownloadCommands(self,event):
         name = str(self.downloadlist.get(self.downloadlist.curselection()))
         isfile = isFile(name)
         if isfile:
@@ -355,17 +346,13 @@ class App:
             self.client.passiveMode()
             self.addClientCommandText(self.client.command)
             self.addServerReplyText(self.client.server_reply)
-            if self.client.DataConnectionFlag:
-                print "Yay downloading"
-                self.can2.itemconfig(self.transferStatus,fill="green")
             # Download File
             self.client.Receive_File(name)
             self.addClientCommandText(self.client.command)
             self.addServerReplyText(self.client.server_reply)
             
-            self.UpdateUploadListUI()
-            if not self.client.DataConnectionFlag:
-                self.can2.itemconfig(self.transferStatus,fill="red")
+        self.mode3()
+        self.UpdateUploadListUI()
             
 
     def ServerDeleteCommands(self):
@@ -392,15 +379,11 @@ class App:
             self.addServerReplyText(self.client.server_reply)
     
     def ServerAddDirCommands(self):
-        try:
-            name = str(self.downloadlist.get(self.downloadlist.curselection()))
-            os.remove(name)
-            print "Deleted file from: " +str(name)
-            self.UpdateDownloadListUI()
-            self.addClientCommandText("Delete the selected file yo")
-            self.addServerReplyText("Deleted the selected file :D")
-        except:
-            print "No selected item." 
+        folder=tkSimpleDialog.askstring("Add Directory", "Name of new folder?")
+        self.client.MakeDirectory(folder)
+        self.addClientCommandText(self.client.command)
+        self.addServerReplyText(self.client.server_reply)
+        self.UpdateDownloadListUI()
         
     #If client wants to delete their own folders for convience
     def UploadDeleteCommands(self):
@@ -415,16 +398,28 @@ class App:
             print "No selected item."
     
     def CHDirCommands(self):
-        pass
+        #cwd, list
+        name = str(self.downloadlist.get(self.downloadlist.curselection()))
+        if not isFile(name):
+            self.client.ChangeDirectory(name)
+            self.UpdateDownloadListUI()
+        return
+        
     def HomeDirCommands(self):
-        pass
+        self.client.ParentDirectory()
+        self.UpdateDownloadListUI()
+        
     def bindButtons(self):
         self.LoginButton.config(command=self.LoginCommands)
         self.ConnectButton.config(command=self.ConnectCommands)
         self.DisconnectButton.config(command=self.DisconnectCommands)
         self.UpdateUploadButton.config(command=self.UpdateUploadListUI)
-        self.UploadButton.config(command=self.UploadCommands)
-        self.DownloadButton.config(command=self.DownloadCommands)
+        self.UploadButton.bind('<ButtonPress-1>',self.mode4)
+        self.UploadButton.bind('<ButtonRelease-1>',self.UploadCommands)
+        
+        self.DownloadButton.bind('<ButtonPress-1>',self.mode4)
+        self.DownloadButton.bind('<ButtonRelease-1>',self.DownloadCommands)
+        
         self.DeleteDownloadButton.config(command=self.ServerDeleteCommands)
         self.UpdateDownloadButton.config(command=self.UpdateDownloadListUI)
         self.DeleteUploadButton.config(command=self.UploadDeleteCommands)
@@ -432,7 +427,7 @@ class App:
         self.AddFolderButton.config(command=self.ServerAddDirCommands)
         self.FolderChangeButtonServer.config(command=self.CHDirCommands)
         self.HomeButtonServer.config(command=self.HomeDirCommands)
-
+        
     def addClientCommandText(self, text):
         self.clientCommandsList.insert(END, text)
         self.clientCommandsList.see(END)
@@ -440,6 +435,32 @@ class App:
     def addServerReplyText(self,text):
         self.serverRepliesList.insert(END, text)
         self.serverRepliesList.see(END)
+    
+    #disconnected mode
+    def mode1(self):
+        self.can2.itemconfigure(self.connectIndicator ,fill="red")
+        self.can2.itemconfig(self.loginIndicator ,fill="red")
+        self.can2.itemconfig(self.dataIndicator ,fill="red")
+    #connected mode
+    def mode2(self):
+        self.can2.itemconfig(self.connectIndicator ,fill="green")
+        self.can2.itemconfig(self.loginIndicator ,fill="red")
+        self.can2.itemconfig(self.dataIndicator ,fill="red")
+    #logged in mode
+    def mode3(self):
+        print "Mode 3"
+        self.can2.itemconfigure(self.connectIndicator ,fill="green")
+        self.can2.itemconfigure(self.loginIndicator ,fill="green")
+        self.can2.itemconfigure(self.dataIndicator ,fill="red")
+        self.master.update_idletasks()
+    #transfering data
+    def mode4(self,event):
+        print "Mode 4"
+        # can 2: Server Status
+        self.can2.itemconfig(self.connectIndicator ,fill="green")
+        self.can2.itemconfig(self.loginIndicator ,fill="green")
+        self.can2.itemconfig(self.dataIndicator ,fill="green")
+        self.master.update_idletasks()
 
 def isFile(name):
     for char in name:
@@ -447,7 +468,7 @@ def isFile(name):
             return True
     return False
     
-    
+folder = ""
 root = Tk()
 app= App(root)
 root.mainloop()

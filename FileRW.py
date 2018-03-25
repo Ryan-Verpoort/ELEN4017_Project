@@ -9,7 +9,7 @@ def ReadFromSocket(socket,File_Name,Encode_Type):
     if(Encode_Type == "None"):
         ReceivedData = socket.recv(8192)
         while ReceivedData:
-            print "Receiving..."
+            #print "Receiving..."
             File.write(ReceivedData)
             ReceivedData = socket.recv(8192)
             
@@ -28,7 +28,7 @@ def WriteToSocket(socket,File_Name,Encode_Type):
     if(Encode_Type == "None"):
         Reading = File.read(8192)
         while (Reading):
-            print "Sending..."
+            #print "Sending..."
             socket.send(Reading)
             Reading = File.read(8192)
             

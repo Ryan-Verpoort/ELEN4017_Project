@@ -14,7 +14,8 @@ EXTENSION = {
     ".jpeg": "I",
     ".png" : "I",
     ".mp4" : "I",
-    ".txt" : "A"
+    ".txt" : "A",
+    ".avi": "I"
 }
 
 
@@ -51,6 +52,7 @@ class Client(object):
         print str(self.UserPath)
 
     def __del__(self):
+        self.Disconnect()
         self.ControlSocket.close()
     
     '''

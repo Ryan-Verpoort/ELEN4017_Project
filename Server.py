@@ -325,7 +325,7 @@ class FTP_Client(threading.Thread):
         return
 
     def ParentDirectory(self):
-        self.UserPath = script_dir
+        self.UserPath = self.UserParentDir
         Reply = os.path.basename(self.UserPath)
         self.ClientSocket.send(Reply.encode('UTF-8')) 
         print(self.UserPath)
