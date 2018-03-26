@@ -1,5 +1,6 @@
 import socket
 import os
+import sys
 from FileRW import *
 script_dir = os.path.dirname(__file__)
 
@@ -45,8 +46,8 @@ class Client(object):
         self.server_reply = ""
         self.command = ""
         # FTP information
-        self.Port = 2500# 21#2500
-        self.Host = '127.0.0.1'#'ftp.drivehq.com'#'127.0.0.1'  #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
+        self.Port = 21#2500
+        self.Host = 'ftp.drivehq.com'#'127.0.0.1'  #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
         self.type = FTP_TYPE["A"]
         self.ControlSocket = socket.socket()
         self.DataSocket = socket.socket()
@@ -79,7 +80,9 @@ class Client(object):
 
     def USER (self, user, command="USER", ):
         self.FTPCommand(command, user)
-        self.user = ""
+        if self.server_reply[0] == "5" :
+            self.Disconnect()
+            sys.exit()
     
     def PASS (self,  password, command="PASS"):
         self.FTPCommand(command, password)
