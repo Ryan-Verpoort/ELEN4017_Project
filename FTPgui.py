@@ -5,8 +5,8 @@ import time
 import os
 import shutil
 import tkSimpleDialog
+import tkMessageBox
 from PIL import Image, ImageTk
-
 
 class App:
     
@@ -68,6 +68,7 @@ class App:
         self.can8 = Canvas(self.panel1, width=500, height=50, bg="purple1")
         self.ShowServerRepliesUI()
         #self.can7.place(x=0,y=450)
+        
 
     def HideBackground(self):
         self.bground.place_forget()
@@ -159,13 +160,11 @@ class App:
             #need to look for : and then go three spaces forward
             x = str(filename)
             print x
-            try:
-                pos = x.find(':')
+            pos = x.find(':')
+            if pos > -1:
                 x=x[pos+4:len(filename)-1]
-                print "Try pass" + pos
-            except:
-                x=x[:len(filename)-1]
-                print "Failed pass"
+            else:
+                x=x[1:len(filename)-1]
             print x
             self.downloadlist.insert(END,x)
             
@@ -299,6 +298,10 @@ class App:
         self.AddFolderButton=Button(self.can6, text="+", width=1, font=("Times", 15))
         self.AddFolderButton.config(highlightbackground='purple1')
         self.AddFolderButton.grid(row=12,column=4)
+        
+        self.HelpButton = Button(self.panel1, text="?", width=1, font= ("Time", 15))
+        self.HelpButton.config(highlightbackground='black')
+        self.HelpButton.place(x=10,y=20)
 
 
     def ConnectCommands(self):
@@ -333,7 +336,6 @@ class App:
         self.addServerReplyText(self.client.server_reply)
         
         self.client.Authenticate()
-        self.addServerReplyText(self.client.server_reply)
         self.username.delete(0,END)
         self.passphrase.delete(0,END)
 
@@ -404,9 +406,9 @@ class App:
             print "Deleted folder:" +str(name) 
              
         if Removed == True:
-            self.UpdateDownloadListUI()
             self.addClientCommandText(self.client.command)
             self.addServerReplyText(self.client.server_reply)
+            self.UpdateDownloadListUI()
     
     def ServerAddDirCommands(self):
         folder=tkSimpleDialog.askstring("Add Directory", "Name of new folder?")
@@ -422,6 +424,7 @@ class App:
             print name
             os.remove(name)
             self.UpdateUploadListUI() 
+            
             print "Deleted file from: " +str(name)
         except:
             print "No selected item."
@@ -431,12 +434,21 @@ class App:
         name = str(self.downloadlist.get(self.downloadlist.curselection()))
         if not isFile(name):
             self.client.ChangeDirectory(name)
+            self.addClientCommandText(self.client.command)
+            self.addServerReplyText(self.client.server_reply)
             self.UpdateDownloadListUI()
         return
         
     def HomeDirCommands(self):
         self.client.ParentDirectory()
+        self.addClientCommandText(self.client.command)
+        self.addServerReplyText(self.client.server_reply)
         self.UpdateDownloadListUI()
+    
+    def Help(self):
+        if self.client.ControlConnectionFlag:
+            self.client.GetHelp()
+            tkMessageBox.showinfo("Server Commands", self.client.server_reply)
         
     def bindButtons(self):
         self.LoginButton.config(command=self.LoginCommands)
@@ -464,6 +476,8 @@ class App:
         self.AddFolderButton.config(command=self.ServerAddDirCommands)
         self.FolderChangeButtonServer.config(command=self.CHDirCommands)
         self.HomeButtonServer.config(command=self.HomeDirCommands)
+        
+        self.HelpButton.config(command=self.Help)
         
     def addClientCommandText(self, text):
         self.clientCommandsList.insert(END, text)
@@ -524,6 +538,7 @@ class App:
             self.HideLoginUI()
             self.ShowUploadListUI()
             self.ShowDownloadListUI()
+            
 
 def isFile(name):
     for char in name:

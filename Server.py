@@ -19,6 +19,23 @@ FTP_TYPE = {
     "I": "None"
 }
 
+FTP_HELP_RESPONSE = { 
+    "USER\n",
+    "PASS\n",
+    "PASV\n",
+    "STOR\n",
+    "RETR\n",
+    "LIST\n",
+    "TYPE\n",
+    "CWD\n",
+    "MKD\n",
+    "RMD\n",
+    "CDUP\n",
+    "DELE\n",
+    "QUIT\n"
+}
+
+
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # This class has the responsibilty of handling a clients connections to the server: 
 #   -> control connection
@@ -84,10 +101,6 @@ class FTP_Client(threading.Thread):
             elif Command == 'RETR':
                 self.Transmit_File(Argument)
                 continue
-            
-            elif Command == 'PORT':
-                print('502 Command not implemented.')
-                continue
         
             elif Command == 'NOOP':
                 self.NoAction(Command)
@@ -129,6 +142,10 @@ class FTP_Client(threading.Thread):
             elif Command == 'QUIT':
                 self.ClientDisconnect()
                 break
+                
+            elif Command == 'HELP':
+                self.HELP()
+                continue
                 
             else:
                 self.ClientSocket.send('502 Command not implemented.')
@@ -333,8 +350,9 @@ class FTP_Client(threading.Thread):
         return
     
     def DeleteFile(self,File_Name):
+        print self.UserPath
         File_Name = str(File_Name).replace("\\","")
-        os.remove(File_Name)
+        os.remove(self.UserPath+'/'+File_Name)
         Reply = '250 \"' + File_Name + '\" deleted successfully.'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
@@ -344,6 +362,17 @@ class FTP_Client(threading.Thread):
         Reply = '221 Service closing control connection. \n' + self.username +' Logged out'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
+    
+    def HELP(self):
+        if self.loginFlag:
+            Reply = "214 The following commands are recognised:\n"
+            for helps in FTP_HELP_RESPONSE:
+                Reply = Reply +  helps
+            Reply = Reply + "214 HELP command successful."
+        else:
+            Reply = "530 Please login with USER and PASS."
+        self.ClientSocket.send(Reply.encode('UTF-8'))
+        
 
 ControlSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ControlSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

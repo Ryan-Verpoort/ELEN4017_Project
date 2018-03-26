@@ -11,7 +11,7 @@ FTP_TYPE = {
 }
 
 EXTENSION = {
-    ".jpeg": "I",
+    ".jpg": "I",
     ".png" : "I",
     ".mp4" : "I",
     ".txt" : "A",
@@ -45,8 +45,8 @@ class Client(object):
         self.server_reply = ""
         self.command = ""
         # FTP information
-        self.Port = 21#2500
-        self.Host = 'ftp.drivehq.com'#'127.0.0.1' #'ftp.drivehq.com' #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
+        self.Port = 2500# 21#2500
+        self.Host = '127.0.0.1'#'ftp.drivehq.com'#'127.0.0.1'  #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
         self.type = FTP_TYPE["A"]
         self.ControlSocket = socket.socket()
         self.DataSocket = socket.socket()
@@ -160,9 +160,7 @@ class Client(object):
         self.DataConnectionFlag = True
         
     def GetHelp(self):
-        self.FTPCommand('HELP',Input)
-        commandInfo = self.ControlSocket.recv(8192).decode('UTF-8')
-        return commandInfo
+        self.FTPCommand('HELP')
 
     def ChangeDirectory(self,DirectoryName ):
         self.FTPCommand('CWD', DirectoryName)
@@ -175,14 +173,14 @@ class Client(object):
         self.FTPCommand('MKD',DirectoryName)
 
     def RemoveDirectory(self, DirectoryName ):
-        self.FTPCommand('RMD',add + DirectoryName+ add)
+        self.FTPCommand('RMD', DirectoryName)
 
     def ParentDirectory(self):
         self.FTPCommand('CDUP','')
         return
 
     def DeleteFile(self, File_Name):
-        self.FTPCommand('DELE',add + File_Name)
+        self.FTPCommand('DELE', File_Name)
         return
 
     def DataType(self, Type):
