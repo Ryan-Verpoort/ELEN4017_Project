@@ -5,6 +5,8 @@ import time
 import os
 import shutil
 import tkSimpleDialog
+from PIL import Image, ImageTk
+
 
 class App:
     
@@ -13,6 +15,8 @@ class App:
         self.frame=Frame(master)
         self.frame.pack()
         self.master=master
+
+        self.master.resizable(width=False, height=False)
         self.master.geometry("500x500")
         self.master.title("FTP GUI")
         self.createCanvas()
@@ -24,39 +28,53 @@ class App:
         
         
     def createCanvas(self):
-
+        #background
+        image2 = Image.open('background.jpg')
+        image1 = ImageTk.PhotoImage(image2)
+        self.panel1 = Label(root, image=image1)
+        self.panel1.pack(side='top', fill='both', expand='yes')
+        self.panel1.image = image1
+        
         #can1 = login screen
-        self.can1 = Canvas(self.master, width=350, height=150, bg="grey")
+        self.can1 = Canvas(self.panel1, width=350, height=150, bg="black",borderwidth=0, highlightthickness=0)
 
         #can2 = server status
-        self.can2 = Canvas(self.master, width=125, height=110, bg="grey")
+        self.can2 = Canvas(self.panel1, width=125, height=110, bg="black",borderwidth=0, highlightthickness=0)
         self.connectIndicator   = self.can2.create_oval(10, 10, 30, 30, fill="red", width=0)
         self.loginIndicator     = self.can2.create_oval(10, 50, 30, 70, fill="red", width=0)
         self.dataIndicator     = self.can2.create_oval(10, 90, 30, 110, fill="red", width=0)
         self.ShowServerStatus1()
 
         #can3 = connect screen
-        self.can3 = Canvas(self.master, width=200, height=100, bg="grey")
+        self.can3 = Canvas(self.panel1, width=120, height=50, bg="black", borderwidth=0, highlightthickness=0)
         self.ShowConnectUI()
 
         #can4 = disconnect screen
-        self.can4 = Canvas(self.master, width=200, height=100, bg="grey")
+        self.can4 = Canvas(self.panel1, width=120, height=50, bg="black",borderwidth=0, highlightthickness=0)
 
         #can5 = client upload list from upload folder
-        self.can5 = Canvas(self.master, width=150, height=200, bg="red")
+        self.can5 = Canvas(self.panel1, width=220, height=200, bg="black",borderwidth=0, highlightthickness=5)
+        self.can5.config(highlightbackground='OrangeRed2')
 
         #can6 = server download list
-        self.can6 = Canvas(self.master, width=150, height=200, bg="blue")
-
+        self.can6 = Canvas(self.panel1, width=165, height=200, bg="black",borderwidth=0, highlightthickness=5)
+        self.can6.config(highlightbackground='purple1')
+        
         #can7 = client commands
-        self.can7 = Canvas(self.master, width=500, height=50, bg="red")
+        self.can7 = Canvas(self.panel1, width=500, height=50, bg="OrangeRed2")
         self.ShowClientCommandsUI()
 
         #can8 = server replies
-        self.can8 = Canvas(self.master, width=500, height=50, bg="blue")
+        self.can8 = Canvas(self.panel1, width=500, height=50, bg="purple1")
         self.ShowServerRepliesUI()
         #self.can7.place(x=0,y=450)
 
+    def HideBackground(self):
+        self.bground.place_forget()
+        
+    def ShowBackground(self):
+        self.bground.pack(expand=True, fill=BOTH)
+        
     # can 1: Login
     def ShowLoginUI(self):
         self.can1.place(x=5, y=175)
@@ -77,7 +95,7 @@ class App:
 
     def HideConnectUI(self):
         self.can3.place_forget()
-
+        
     # can 4: Disconnect
     def ShowDisconnectUI(self):
         self.can4.place(x=10, y=50)
@@ -87,7 +105,7 @@ class App:
 
     # can 5: Upload UI
     def ShowUploadListUI(self):
-        self.can5.place(x=10, y=175)
+        self.can5.place(x=15, y=175)
         self.UpdateUploadListUI()
 
     def HideUploadListUI(self):
@@ -97,10 +115,11 @@ class App:
         Text = "Client Files"
         self.uploadlist=[]
         self.uploadFiles= []
-        UL  = Label(self.can5, text=Text, font=("Times", 15), justify=LEFT).grid(row=0,column=1, columnspan=3)
+        UL  = Label(self.can5, text=Text, font=("Times", 15), bg='OrangeRed2',justify=LEFT).grid(row=0,column=1, columnspan=3)
         scrollbar = Scrollbar(self.can5)
         scrollbar.grid(row=5,column=3, rowspan=5, sticky=N+S)
         self.uploadlist= Listbox(self.can5, height=5, yscrollcommand=scrollbar.set, width=20)
+        self.uploadlist.config(bg='black', fg='white')
         self.uploadlist.grid(row=5,column=2,rowspan=5)
         scrollbar.config(command=self.uploadlist.yview)
 
@@ -120,11 +139,12 @@ class App:
 
     def UpdateDownloadListUI(self):
         Text = "Server Files"
-        DL  = Label(self.can6, text=Text, font=("Times", 15), justify=LEFT).grid(row=0,column=1, columnspan=3)
+        DL  = Label(self.can6, text=Text, font=("Times", 15),bg='purple1', justify=LEFT).grid(row=0,column=1, columnspan=3)
         scrollbar = Scrollbar(self.can6)
         scrollbar.grid(row=1,column=3, rowspan=5, sticky=N+S)
         self.downloadlist= []
         self.downloadlist= Listbox(self.can6, height=5,yscrollcommand=scrollbar.set, width=20)
+        self.downloadlist.config(bg='black', fg='white')
         self.downloadlist.grid(row=1,column=2,rowspan=5)
         scrollbar.config(command=self.downloadlist.yview)
         
@@ -134,10 +154,19 @@ class App:
         self.addServerReplyText(self.client.server_reply)
         serverList = self.client.FileDirectory()
        
+        print "List"
         for filename in serverList:
-            if str(filename)[0:1] == ".":
-                continue
+            #need to look for : and then go three spaces forward
             x = str(filename)
+            print x
+            try:
+                pos = x.find(':')
+                x=x[pos+4:len(filename)-1]
+                print "Try pass" + pos
+            except:
+                x=x[:len(filename)-1]
+                print "Failed pass"
+            print x
             self.downloadlist.insert(END,x)
             
         self.addClientCommandText(self.client.command)
@@ -145,26 +174,30 @@ class App:
         
     #can 7 
     def ShowClientCommandsUI(self):
-        self.can7.place(x=0,y=375)
+        self.can7.place(x=15,y=370)
+        self.can7.config(highlightbackground="OrangeRed2")
         Text = "Client -> Server Commands"
-        CC  = Label(self.can7, text=Text, font=("Times", 15), justify=LEFT).grid(row=0,column=0, columnspan=3)
+        CC  = Label(self.can7, text=Text, font="Times 15 bold",bg='OrangeRed2', justify=LEFT).grid(row=0,column=0, columnspan=3)
         scrollbar = Scrollbar(self.can7)
         scrollbar.grid(row=1,column=3, rowspan=2, sticky=N+S)
         self.clientCommandsList= []
         self.clientCommandsList= Listbox(self.can7, height=2, yscrollcommand=scrollbar.set, width=50)
+        self.clientCommandsList.config(bg='black', fg='white')
         self.clientCommandsList.grid(row=1,column=2,rowspan=2)
         scrollbar.config(command=self.clientCommandsList.yview)
         self.clientCommandsList.see(END)
 
     #can8
     def ShowServerRepliesUI(self):
-        self.can8.place(x=0,y=430)
+        self.can8.place(x=15,y=430)
+        self.can8.config(highlightbackground="purple1")
         Text = "Server -> Client Replies"
-        CC  = Label(self.can8, text=Text, font=("Times", 15), justify=LEFT).grid(row=0,column=0, columnspan=3)
+        CC  = Label(self.can8, text=Text, font="Times 15 bold", justify=LEFT,bg='purple1').grid(row=0,column=0, columnspan=3,)
         scrollbar = Scrollbar(self.can8)
         scrollbar.grid(row=1,column=3, rowspan=2, sticky=N+S)
         self.serverRepliesList= []
         self.serverRepliesList= Listbox(self.can8, height=2, yscrollcommand=scrollbar.set, width=50)
+        self.serverRepliesList.config(bg='black', fg='white')
         self.serverRepliesList.grid(row=1,column=2,rowspan=2)
         scrollbar.config(command=self.serverRepliesList.yview)
         self.serverRepliesList.see(END)
@@ -189,16 +222,16 @@ class App:
         T15 = "Transfer"
 
     #create and place labels
-        T1L  = Label(self.master, text=T1 , font=("Times", 30), justify=LEFT)
-        T2L  = Label(self.can1, text=T2 , font=("Times", 20), justify=LEFT)
-        T3L  = Label(self.can1, text=T3 , font=("Times", 20), justify=LEFT)
-        T5L  = Label(self.can2, text=T5 , font=("Times", 15), justify=LEFT)
-        T6L  = Label(self.can2, text=T6 , font=("Times", 15), justify=LEFT)
-        T7L  = Label(self.master, text=T7 , font=("Times", 20), justify=LEFT)
-        T15L = Label(self.can2, text=T15 , font=("Times", 15), justify=LEFT)
+        T1L  = Label(self.panel1, text=T1 , font=("Times", 30), justify=LEFT,fg='white',bg='black')
+        T2L  = Label(self.can1, text=T2 , font=("Times", 20), justify=LEFT,fg='white',bg='black')
+        T3L  = Label(self.can1, text=T3 , font=("Times", 20), justify=LEFT,fg='white',bg='black')
+        T5L  = Label(self.can2, text=T5 , font=("Times", 15), justify=LEFT,fg='white',bg='black')
+        T6L  = Label(self.can2, text=T6 , font=("Times", 15), justify=LEFT,fg='white',bg='black')
+        T7L  = Label(self.panel1, text=T7 , font=("Times", 20), justify=LEFT, fg='white',bg='black')
+        T15L = Label(self.can2, text=T15 , font=("Times", 15), justify=LEFT,fg='white',bg='black')
         #T10L  = Label(self.can2, text=T10, font=("Times", 15), justify=LEFT)
 
-        T1L.place(  x=10 , y=10)
+        T1L.place(  x=200 , y=10)
         T2L.place(  x=10 , y=10)
         T3L.place(  x=10 , y=60)
         T5L.place(  x=40 , y=10)
@@ -216,81 +249,76 @@ class App:
         self.passphrase.insert(5,'')
         self.passphrase.place(x=110,y=60)
       
-        self.LoginButton=Button(self.can1, text=T4, width=15, font=("Times", 20))
+        self.LoginButton=Button(self.can1,text=T4, width=15, font=("Times", 20))
+        self.LoginButton.config(highlightbackground='black')
         self.LoginButton.place(x=110,y=110)
 
-        self.ConnectButton=Button(self.can3, text=T8, width=10, font=("Times", 20))
+        self.ConnectButton=Button(self.can3, width=10,font=("Times", 20))
+        self.ConnectButton.config(text=T8, highlightbackground='black')
+
         self.ConnectButton.place(x=0,y=0)
+        
 
         self.DisconnectButton=Button(self.can4, text=T9, width=10, font=("Times", 20))
+        self.DisconnectButton.config(highlightbackground='black')
         self.DisconnectButton.place(x=0,y=0)
 
         self.UploadButton=Button(self.can5, text=T11, width=10, font=("Times", 15))
+        self.UploadButton.config(highlightbackground='OrangeRed2')
         self.UploadButton.grid(row=10,column=1,columnspan=3)
 
         self.UpdateUploadButton=Button(self.can5, text=T12, width=10, font=("Times", 15))
+        self.UpdateUploadButton.config(highlightbackground='OrangeRed2')
         self.UpdateUploadButton.grid(row=11,column=1,columnspan=3)
 
         self.DeleteUploadButton=Button(self.can5, text=T14, width=10, font=("Times", 15))
+        self.DeleteUploadButton.config(highlightbackground='OrangeRed2')
         self.DeleteUploadButton.grid(row=12,column=1,columnspan=3)
 
         # DELETE, DOWNLOAD, UPDATE server stuff
         self.DownloadButton=Button(self.can6, text=T13, width=13, font=("Times", 15))
+        self.DownloadButton.config(highlightbackground='purple1')
         self.DownloadButton.grid(row=10,column=1,columnspan=3)
 
         self.DeleteDownloadButton=Button(self.can6, text=T14, width=13, font=("Times", 15))
+        self.DeleteDownloadButton.config(highlightbackground='purple1')
         self.DeleteDownloadButton.grid(row=11,column=1,columnspan=3)
 
         self.UpdateDownloadButton=Button(self.can6, text=T12, width=13, font=("Times", 15))
+        self.UpdateDownloadButton.config(highlightbackground='purple1')
         self.UpdateDownloadButton.grid(row=12,column=1,columnspan=3)
         
         self.FolderChangeButtonServer=Button(self.can6, text=">", width=1, font=("Times", 15))
+        self.FolderChangeButtonServer.config(highlightbackground='purple1')
         self.FolderChangeButtonServer.grid(row=10,column=4)
         
         self.HomeButtonServer=Button(self.can6, text="H", width=1, font=("Times", 15))
+        self.HomeButtonServer.config(highlightbackground='purple1')
         self.HomeButtonServer.grid(row=11,column=4)
         
         self.AddFolderButton=Button(self.can6, text="+", width=1, font=("Times", 15))
+        self.AddFolderButton.config(highlightbackground='purple1')
         self.AddFolderButton.grid(row=12,column=4)
 
 
     def ConnectCommands(self):
         #send command to server, receive server response, change color according to status
-        if not self.client.ControlConnectionFlag:
-            self.mode2()
-            self.ShowDisconnectUI()
-            self.HideConnectUI()
-            self.ShowLoginUI()
-            self.client.Connect()
-            #self.addServerReplyText(self.Client.ServerMsg)
-        #self.addServerReplyText("Connecting you to the server ... ")
+        self.client.Connect()
+        self.addServerReplyText(self.client.server_reply)
+        self.ConnectedScreen()
 
     def DisconnectCommands(self):
         if self.client.ControlConnectionFlag:
-            self.mode1()
-            self.HideDisconnectUI()
-            self.HideLoginUI()
-            self.HideUploadListUI()
-            self.HideDownloadListUI()
-            self.ShowConnectUI()
             self.client.Disconnect()
             self.addClientCommandText(self.client.command)
             self.addServerReplyText(self.client.server_reply)
+            self.DisconnectedScreen()
     
     def LoginCommands(self):
         # must check to see if logged in successfully
-        
         if self.client.ControlConnectionFlag:
             self.Login()
-            if self.client.LoginFlag:
-                self.mode3()
-                self.HideLoginUI()
-                self.ShowUploadListUI()
-                self.ShowDownloadListUI()
-                # Change directory into user
-                self.client.ChangeDirectory(self.client.username)
-                self.addClientCommandText(self.client.command)
-                self.addServerReplyText(self.client.server_reply)
+            self.LoggedScreen()
         
     def Login(self):    
         u=self.username.get()
@@ -304,6 +332,8 @@ class App:
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
         
+        self.client.Authenticate()
+        self.addServerReplyText(self.client.server_reply)
         self.username.delete(0,END)
         self.passphrase.delete(0,END)
 
@@ -389,7 +419,6 @@ class App:
     def UploadDeleteCommands(self):
         try:
             name = self.client.UserPath+'/'+str(self.uploadlist.get(self.uploadlist.curselection()))
-            
             print name
             os.remove(name)
             self.UpdateUploadListUI() 
@@ -411,9 +440,17 @@ class App:
         
     def bindButtons(self):
         self.LoginButton.config(command=self.LoginCommands)
+        #self.LoginButton.bind('<ButtonPress-1>',self.LoggedScreen)
+        #self.LoginButton.bind('<ButtonRelease-1>',self.LoginCommands)
+        
         self.ConnectButton.config(command=self.ConnectCommands)
+        #self.ConnectButton.bind('<ButtonPress-1>',self.ConnectCommands)
+        #self.ConnectButton.bind('<ButtonRelease-1>',self.ConnectedScreen)
+        
         self.DisconnectButton.config(command=self.DisconnectCommands)
-        self.UpdateUploadButton.config(command=self.UpdateUploadListUI)
+        #self.DisconnectButton.bind('<ButtonPress-1>',self.DisconnectCommands)
+        #self.DisconnectButton.bind('<ButtonRelease-1>',self.DisconnectedScreen)
+        #self.UpdateUploadButton.config(command=self.UpdateUploadListUI)
         self.UploadButton.bind('<ButtonPress-1>',self.mode4)
         self.UploadButton.bind('<ButtonRelease-1>',self.UploadCommands)
         
@@ -452,7 +489,7 @@ class App:
         self.can2.itemconfigure(self.connectIndicator ,fill="green")
         self.can2.itemconfigure(self.loginIndicator ,fill="green")
         self.can2.itemconfigure(self.dataIndicator ,fill="red")
-        self.master.update_idletasks()
+        self.panel1.update_idletasks()
     #transfering data
     def mode4(self,event):
         print "Mode 4"
@@ -460,7 +497,33 @@ class App:
         self.can2.itemconfig(self.connectIndicator ,fill="green")
         self.can2.itemconfig(self.loginIndicator ,fill="green")
         self.can2.itemconfig(self.dataIndicator ,fill="green")
-        self.master.update_idletasks()
+        self.panel1.update_idletasks()
+    
+    def DisconnectedScreen(self):
+        if not self.client.ControlConnectionFlag:
+            print "DC..."
+            self.mode1()
+            self.HideDisconnectUI()
+            self.HideLoginUI()
+            self.HideUploadListUI()
+            self.HideDownloadListUI()
+            self.ShowConnectUI()
+            
+    def ConnectedScreen(self):
+        if self.client.ControlConnectionFlag:
+            print "C..."
+            self.mode2()
+            self.ShowDisconnectUI()
+            self.HideConnectUI()
+            self.ShowLoginUI()
+    
+    def LoggedScreen(self):
+        if self.client.LoginFlag:
+            print "L..."
+            self.mode3()
+            self.HideLoginUI()
+            self.ShowUploadListUI()
+            self.ShowDownloadListUI()
 
 def isFile(name):
     for char in name:

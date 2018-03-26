@@ -63,6 +63,8 @@ class FTP_Client(threading.Thread):
     #       - else = wait for next client command
     # -----------------------------------
     def run(self):
+        ReplyMsg = "220 Welcome to Group 3's FTP server"
+        self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
         while 1:
             Input = self.ClientSocket.recv(4096).decode('UTF-8')
             Command,Argument = self.InputArgument(Input)
@@ -188,12 +190,10 @@ class FTP_Client(threading.Thread):
             ReplyMsg = "230 User logged in, proceed."
             self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,self.username))
             self.UserParentDir = os.path.abspath(os.path.join(os.path.sep,self.UserParentDir,self.username))
-            os.chdir(self.UserParentDir)
         else:
             ReplyMsg = "530 Not logged in."
         print str(self.UserParentDir)
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
-        self.getUserPath()
         
     def getUserPath(self):
         print self.UserPath
@@ -207,10 +207,7 @@ class FTP_Client(threading.Thread):
     #   -> resets the type
     # -----------------------------------
     def Receive_File(self, File_Name):
-      
-        Reply1 = ("225 Data connection open; no transfer in progress.\r\n")
-        self.ClientSocket.send(Reply1.encode('UTF-8'))
-        
+        File_Name = str(File_Name).replace("\\","")
         File_Name = str(self.UserPath)+ '/' + File_Name
         ReadFromSocket(self.DataSocket, File_Name, self.type)
        
@@ -223,10 +220,7 @@ class FTP_Client(threading.Thread):
         return
     
     def Transmit_File(self, File_Name):
-        
-        Reply1 = ("225 Data connection open; no transfer in progress.\r\n")
-        self.ClientSocket.send(Reply1.encode('UTF-8'))
-        
+        File_Name = str(File_Name).replace("\\","")
         File_Name = str(self.UserPath)+ '/'+str(File_Name)
         WriteToSocket(self.DataSocket, File_Name, self.type)
         
@@ -251,15 +245,16 @@ class FTP_Client(threading.Thread):
         Files = 'Files in Current Directory : \"' + DirectoryName + ''
         FileDirectory = os.listdir(self.UserPath)
         
+        add = "\\"
         files = ""
         for i in FileDirectory:
-            files = files + str(i) + '\n'
+            if str(i)[0] == ".":
+                continue
+            files = files +add+ str(i) + add+'\n'
        
         print files
         self.DataSocket.send(files.encode('UTF-8'))
         self.DataSocket.close()
-        #self.DataSocket, self.DataAddress = FileTransferSocket.accept()
-        #ReplyCode = ("225 Data connection open; no transfer in progress.\r\n")
         Reply = '226 Successfully transferred list of current working directory\"'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         #print(UserPath)
@@ -295,11 +290,15 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.send(Message.encode("UTF-8"))
         self.DataSocket, self.DataAddress = FileTransferSocket.accept()
         
+        Message = ( '150 Connection accepted')
+        self.ClientSocket.send(Message.encode("UTF-8"))
+        
         FileTransferSocket.close()
         
     
     # Changes for all users needs to be fixed
     def ChangeDirectory(self,DirectoryName):
+        DirectoryName = str(DirectoryName).replace("\\","")
         if os.path.isdir(self.UserPath+"/"+str(DirectoryName)):
             self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
             Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.'
@@ -310,6 +309,7 @@ class FTP_Client(threading.Thread):
         return
     
     def MakeDirectory(self,DirectoryName):
+        DirectoryName = str(DirectoryName).replace("\\","")
         os.mkdir(self.UserPath+"/"+DirectoryName)
         Reply = '257 \"' + DirectoryName + '\" created successfully'
         self.ClientSocket.send(Reply.encode('UTF-8'))
@@ -317,6 +317,7 @@ class FTP_Client(threading.Thread):
         return
     
     def RemoveDirectory(self,DirectoryName):
+        DirectoryName = str(DirectoryName).replace("\\","")
         shutil.rmtree(self.UserPath+"/"+DirectoryName) # Removes folder and all its contents
         #os.rmdir(DirectoryName)
         Reply = '250 \"' + DirectoryName + '\" deleted successfully.'
@@ -332,6 +333,7 @@ class FTP_Client(threading.Thread):
         return
     
     def DeleteFile(self,File_Name):
+        File_Name = str(File_Name).replace("\\","")
         os.remove(File_Name)
         Reply = '250 \"' + File_Name + '\" deleted successfully.'
         self.ClientSocket.send(Reply.encode('UTF-8'))
