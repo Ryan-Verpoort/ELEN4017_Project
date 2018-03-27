@@ -37,9 +37,11 @@ FTP_HELP_RESPONSE = {
 
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# class FTP_Client
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # This class has the responsibilty of handling a clients connections to the server: 
-#   -> control connection
-#   -> data connection
+#   -> control connection (receives commands and sends server replies)
+#   -> data connection (sends and receives data)
 #
 # Multiple FTP_Client threads can be run in parallel, which is created by the main server socket.
 #
@@ -61,8 +63,6 @@ class FTP_Client(threading.Thread):
         self.Host = Host
         self.UserPath = os.path.abspath(os.path.join(os.path.sep,script_dir,"ClientDatabase"))
         self.UserParentDir = os.path.abspath(os.path.join(os.path.sep,script_dir,"ClientDatabase"))
-        #self.fsHandler = FileSocketHandler()
-        
         self.type = FTP_TYPE["A"]
         # For User Login
         self.loginFlag = False
@@ -71,6 +71,8 @@ class FTP_Client(threading.Thread):
       
         print ('Connection request from address: ' + str(self.ClientAddress))
         
+    # -----------------------------------
+    # function run
     # -----------------------------------
     # This function is the main entry for the thread and it does the following:
     #   -> constantly checks for the clients commands.
@@ -153,6 +155,8 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.close()
         
     # -----------------------------------
+    # function InputArgument
+    # -----------------------------------
     # in- Input which is a string
     # out- Command, Argument which are both strings
     # -----------------------------------
@@ -173,12 +177,13 @@ class FTP_Client(threading.Thread):
         return Command,Argument
     
     # -----------------------------------
+    # function USER
+    # -----------------------------------
     # in- username:string
     # -----------------------------------
     # This function does the following:
     #   -> checks the username against the LoginDetails
     #   -> sets a username flag
-    #   -> sends appropriate response to client
     # -----------------------------------
     def USER(self, username):
         # Check if username is good
@@ -188,16 +193,17 @@ class FTP_Client(threading.Thread):
             ReplyMsg = "331  User name okay, need password." 
         else: 
             self.usernameFlag = False
-            ReplyMsg = "332 Need account for login."
+            ReplyMsg = "530 Need an account. No anonymous users allowed"
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
     
+    # -----------------------------------
+    # function PASS
     # -----------------------------------
     # in- password:string
     # -----------------------------------
     # This function does the following:
     #   -> checks the username against the LoginDetails
-    #   -> sets a username flag
-    #   -> sends appropriate response to client
+    #   -> sets a username flag 
     # -----------------------------------
     def PASS(self, password):
         if self.loginFlag or not self.usernameFlag:
@@ -211,16 +217,19 @@ class FTP_Client(threading.Thread):
             ReplyMsg = "530 Not logged in."
         print str(self.UserParentDir)
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
-        
+    
     def getUserPath(self):
-        print self.UserPath
+        print self.UserPath # user to print the path
+        
+    
+    # -----------------------------------
+    # function Receive_File
     # -----------------------------------
     # in - File_Name:string
+    # -----------------------------------
+    # FTP COMMAND == STOR 
     # This function does the following:
-    #   -> sends a reply to the client: that the data connection is ready
-    #   -> stores the file received from the client
-    #   -> closes the data connection
-    #   -> sends a reply to the client: that the transfer was successful
+    #   -> stores the file received from the client in the path specified for the user
     #   -> resets the type
     # -----------------------------------
     def Receive_File(self, File_Name):
@@ -236,6 +245,15 @@ class FTP_Client(threading.Thread):
 
         return
     
+    # -----------------------------------
+    # function Transmit_File
+    # -----------------------------------
+    # FTP COMMAND == RETR
+    # in - File_Name:string
+    # This function does the following:
+    #   -> sends the requested file to the client
+    #   -> resets the type
+    # -----------------------------------
     def Transmit_File(self, File_Name):
         File_Name = str(File_Name).replace("\\","")
         File_Name = str(self.UserPath)+ '/'+str(File_Name)
@@ -248,15 +266,24 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.send(Reply.encode('UTF-8'))
         
         return
-        
-    # NOOP command returns 200 Ok
+    # -----------------------------------
+    # FTP COMMAND == NOOP 
+    # -----------------------------------
+    # This function does nothing! 
+    # -----------------------------------
     def NoAction(self):
         Input = '200 OK'
         self.ClientSocket.send(Input.encode('UTF-8'))
         return
     
-    #Not Working With Multiple Users
-    #List all files and folders in current directory
+    # -----------------------------------
+    # function CurrentFileDirectory
+    # -----------------------------------
+    # FTP COMMAND == LIST
+    # This function does the following:
+    #   -> list all files and folders in current directory.
+    #   -> sends the list to the client through the data connection.
+    # -----------------------------------
     def CurrentFileDirectory(self):
         DirectoryName = os.path.basename(self.UserPath)
         Files = 'Files in Current Directory : \"' + DirectoryName + ''
@@ -276,8 +303,16 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.send(Reply.encode('UTF-8'))
         #print(UserPath)
         return
-        
-    #Change the data type for file transfers
+
+    # -----------------------------------
+    # function DataType
+    # -----------------------------------
+    # in - Type:string (A,E,I)
+    # -----------------------------------
+    # FTP COMMAND == TYPE
+    # This function does the following:
+    #   -> sets the type for the next data transmission
+    # -----------------------------------
     def DataType(self,Type):
         #if true let user choose type
         if Type in FTP_TYPE:
@@ -289,7 +324,14 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
     
-    # Implement Passive Mode which initilises the socket to be used
+    # -----------------------------------
+    # function PassiveMode
+    # -----------------------------------
+    # FTP COMMAND == PASV
+    # This function does the following:
+    #   -> Initilises the data connection socket to be used
+    #   -> Sends socket information to client
+    # -----------------------------------
     def PassiveMode(self):
         FileTransferSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         FileTransferSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -312,8 +354,7 @@ class FTP_Client(threading.Thread):
         
         FileTransferSocket.close()
         
-    
-    # Changes for all users needs to be fixed
+    # FTP COMMAND == CWD
     def ChangeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
         if os.path.isdir(self.UserPath+"/"+str(DirectoryName)):
@@ -325,6 +366,7 @@ class FTP_Client(threading.Thread):
         self.getUserPath()
         return
     
+    # FTP COMMAND == MKD
     def MakeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
         os.mkdir(self.UserPath+"/"+DirectoryName)
@@ -333,6 +375,7 @@ class FTP_Client(threading.Thread):
         self.getUserPath()
         return
     
+    # FTP COMMAND == RMD
     def RemoveDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
         shutil.rmtree(self.UserPath+"/"+DirectoryName) # Removes folder and all its contents
@@ -341,7 +384,9 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.send(Reply.encode('UTF-8'))
         self.getUserPath()
         return
-
+    
+    # FTP COMMAND == CDUP
+    # Changes the users cwd to the parent directory
     def ParentDirectory(self):
         self.UserPath = self.UserParentDir
         Reply = os.path.basename(self.UserPath)
@@ -349,6 +394,7 @@ class FTP_Client(threading.Thread):
         print(self.UserPath)
         return
     
+    # FTP COMMAND == DELE
     def DeleteFile(self,File_Name):
         print self.UserPath
         File_Name = str(File_Name).replace("\\","")
@@ -357,12 +403,20 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
     
+    # FTP COMMAND == QUIT
     def ClientDisconnect(self):
         print('Client at address: ' + str(ClientAddress) + ' Disconnected')
         Reply = '221 Service closing control connection. \n' + self.username +' Logged out'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
-    
+        
+    # -----------------------------------
+    # function Help
+    # -----------------------------------
+    # FTP COMMAND == HELP
+    # This function does the following:
+    #   -> sends the user the implemented server commands
+    # -----------------------------------
     def HELP(self):
         if self.loginFlag:
             Reply = "214 The following commands are recognised:\n"
@@ -373,7 +427,7 @@ class FTP_Client(threading.Thread):
             Reply = "530 Please login with USER and PASS."
         self.ClientSocket.send(Reply.encode('UTF-8'))
         
-
+# The main server control socket listens for new connections and creates threads
 ControlSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ControlSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 ControlSocket.bind((Host, Port))

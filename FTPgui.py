@@ -23,9 +23,6 @@ class App:
         self.createAllVisuals()
         self.bindButtons()
         self.client = Client()
-        # self.connectCFlag = False
-        # self.loginFlag = False
-        
         
     def createCanvas(self):
         #background
@@ -361,10 +358,6 @@ class App:
         self.mode3()
         self.UpdateDownloadListUI()
         
-        
-        #except:
-         #   print "No item selected."
-         
     def DownloadCommands(self,event):
         name = str(self.downloadlist.get(self.downloadlist.curselection()))
         isfile = isFile(name)
@@ -452,31 +445,18 @@ class App:
         
     def bindButtons(self):
         self.LoginButton.config(command=self.LoginCommands)
-        #self.LoginButton.bind('<ButtonPress-1>',self.LoggedScreen)
-        #self.LoginButton.bind('<ButtonRelease-1>',self.LoginCommands)
-        
         self.ConnectButton.config(command=self.ConnectCommands)
-        #self.ConnectButton.bind('<ButtonPress-1>',self.ConnectCommands)
-        #self.ConnectButton.bind('<ButtonRelease-1>',self.ConnectedScreen)
-        
         self.DisconnectButton.config(command=self.DisconnectCommands)
-        #self.DisconnectButton.bind('<ButtonPress-1>',self.DisconnectCommands)
-        #self.DisconnectButton.bind('<ButtonRelease-1>',self.DisconnectedScreen)
-        #self.UpdateUploadButton.config(command=self.UpdateUploadListUI)
         self.UploadButton.bind('<ButtonPress-1>',self.mode4)
         self.UploadButton.bind('<ButtonRelease-1>',self.UploadCommands)
-        
         self.DownloadButton.bind('<ButtonPress-1>',self.mode4)
         self.DownloadButton.bind('<ButtonRelease-1>',self.DownloadCommands)
-        
         self.DeleteDownloadButton.config(command=self.ServerDeleteCommands)
         self.UpdateDownloadButton.config(command=self.UpdateDownloadListUI)
         self.DeleteUploadButton.config(command=self.UploadDeleteCommands)
-        
         self.AddFolderButton.config(command=self.ServerAddDirCommands)
         self.FolderChangeButtonServer.config(command=self.CHDirCommands)
         self.HomeButtonServer.config(command=self.HomeDirCommands)
-        
         self.HelpButton.config(command=self.Help)
         
     def addClientCommandText(self, text):
