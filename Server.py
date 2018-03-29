@@ -8,7 +8,7 @@ import shutil
 Port = 2500
 Host = '127.0.0.1'
 
-script_dir = os.getcwd()
+script_dir = os.path.dirname(__file__)
 
 LoginDetails = {"user": "123"}
 
