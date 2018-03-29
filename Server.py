@@ -82,7 +82,7 @@ class FTP_Client(threading.Thread):
     #       - else = wait for next client command
     # -----------------------------------
     def run(self):
-        ReplyMsg = "220 Welcome to Group 3's FTP server"
+        ReplyMsg = "220 Welcome to Group 3's FTP server.\r\n"
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
         while 1:
             Input = self.ClientSocket.recv(4096).decode('UTF-8')
@@ -137,6 +137,9 @@ class FTP_Client(threading.Thread):
             elif Command == 'CDUP':
                 self.ParentDirectory()
             
+            elif Command == 'PWD':
+                self.PrintWorkingDirectory()
+
             elif Command == 'DELE':
                 self.DeleteFile(Argument)
                 continue
@@ -150,7 +153,7 @@ class FTP_Client(threading.Thread):
                 continue
                 
             else:
-                self.ClientSocket.send('502 Command not implemented.')
+                self.ClientSocket.send('502 Command not implemented.\r\n')
                 
         self.ClientSocket.close()
         
@@ -190,10 +193,10 @@ class FTP_Client(threading.Thread):
         if username in LoginDetails.keys():
             self.username = username
             self.usernameFlag = True
-            ReplyMsg = "331  User name okay, need password." 
+            ReplyMsg = "331  User name okay, need password.\r\n" 
         else: 
             self.usernameFlag = False
-            ReplyMsg = "530 Need an account. No anonymous users allowed"
+            ReplyMsg = "530 Need an account. No anonymous users allowed.\r\n"
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
     
     # -----------------------------------
@@ -207,14 +210,14 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def PASS(self, password):
         if self.loginFlag or not self.usernameFlag:
-            ReplyMsg = "451 Requested action aborted: local error in processing."
+            ReplyMsg = "451 Requested action aborted: local error in processing.\r\n"
         elif (password == LoginDetails[self.username]):
             self.loginFlag = True
-            ReplyMsg = "230 User logged in, proceed."
+            ReplyMsg = "230 User logged in, proceed.\r\n"
             self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,self.username))
             self.UserParentDir = os.path.abspath(os.path.join(os.path.sep,self.UserParentDir,self.username))
         else:
-            ReplyMsg = "530 Not logged in."
+            ReplyMsg = "530 Not logged in.\r\n"
         print str(self.UserParentDir)
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
     
@@ -272,7 +275,7 @@ class FTP_Client(threading.Thread):
     # This function does nothing! 
     # -----------------------------------
     def NoAction(self):
-        Input = '200 OK'
+        Input = '200 OK\r\n''
         self.ClientSocket.send(Input.encode('UTF-8'))
         return
     
@@ -286,7 +289,7 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def CurrentFileDirectory(self):
         DirectoryName = os.path.basename(self.UserPath)
-        Files = 'Files in Current Directory : \"' + DirectoryName + ''
+        Files = 'Files in Current Directory : \"' + DirectoryName + '\r\n'
         FileDirectory = os.listdir(self.UserPath)
         
         add = "\\"
@@ -299,7 +302,7 @@ class FTP_Client(threading.Thread):
         print files
         self.DataSocket.send(files.encode('UTF-8'))
         self.DataSocket.close()
-        Reply = '226 Successfully transferred list of current working directory\"'
+        Reply = '226 Successfully transferred list of current working directory\"\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         #print(UserPath)
         return
@@ -317,9 +320,9 @@ class FTP_Client(threading.Thread):
         #if true let user choose type
         if Type in FTP_TYPE:
             self.type = FTP_TYPE[Type]
-            Reply = '200 Type set to ' + Type
+            Reply = '200 Type set to ' + Type +'\r\n'
         else:
-            Reply = '400 Type ' + Type + ' not supported'
+            Reply = '400 Type ' + Type + ' not supported\r\n'
         print "Data"
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
@@ -345,7 +348,7 @@ class FTP_Client(threading.Thread):
         p1 = (DataPort -p2)/256
         
         self.Host = self.Host.replace('.',',')
-        Message = ( '227 Entering Passive Mode (' + self.Host +',' + str(p1) + ',' +str(p2) + ')' )
+        Message = ( '227 Entering Passive Mode (' + self.Host +',' + str(p1) + ',' +str(p2) + ')' +'\r\n' )
         self.ClientSocket.send(Message.encode("UTF-8"))
         self.DataSocket, self.DataAddress = FileTransferSocket.accept()
         
@@ -359,9 +362,9 @@ class FTP_Client(threading.Thread):
         DirectoryName = str(DirectoryName).replace("\\","")
         if os.path.isdir(self.UserPath+"/"+str(DirectoryName)):
             self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
-            Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.'
+            Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.\r\n'
         else :
-            Reply = '550 \"' + DirectoryName + '\"does not exsist.'
+            Reply = '550 \"' + DirectoryName + '\"does not exsist.\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         self.getUserPath()
         return
@@ -370,7 +373,7 @@ class FTP_Client(threading.Thread):
     def MakeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
         os.mkdir(self.UserPath+"/"+DirectoryName)
-        Reply = '257 \"' + DirectoryName + '\" created successfully'
+        Reply = '257 \"' + DirectoryName + '\" created successfully\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         self.getUserPath()
         return
@@ -380,7 +383,7 @@ class FTP_Client(threading.Thread):
         DirectoryName = str(DirectoryName).replace("\\","")
         shutil.rmtree(self.UserPath+"/"+DirectoryName) # Removes folder and all its contents
         #os.rmdir(DirectoryName)
-        Reply = '250 \"' + DirectoryName + '\" deleted successfully.'
+        Reply = '250 \"' + DirectoryName + '\" deleted successfully.\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         self.getUserPath()
         return
@@ -393,20 +396,27 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.send(Reply.encode('UTF-8')) 
         print(self.UserPath)
         return
-    
+
+    #FTP COMMAND == PWD
+    #Prints current working directory
+    def PrintWorkingDirectory(self):
+        Folder_Name = os.path.basename(self.UserPath)
+        Reply = '257 "/" is your current working directory\r\n'
+        self.ClientSocket.send(Reply.encode('UTF-8'))
+        return
     # FTP COMMAND == DELE
     def DeleteFile(self,File_Name):
         print self.UserPath
         File_Name = str(File_Name).replace("\\","")
         os.remove(self.UserPath+'/'+File_Name)
-        Reply = '250 \"' + File_Name + '\" deleted successfully.'
+        Reply = '250 \"' + File_Name + '\" deleted successfully.\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
     
     # FTP COMMAND == QUIT
     def ClientDisconnect(self):
         print('Client at address: ' + str(ClientAddress) + ' Disconnected')
-        Reply = '221 Service closing control connection. \n' + self.username +' Logged out'
+        Reply = '221 Service closing control connection. \n' + self.username +' Logged out\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
         
@@ -419,12 +429,12 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def HELP(self):
         if self.loginFlag:
-            Reply = "214 The following commands are recognised:\n"
+            Reply = "214 The following commands are recognised:\r\n"
             for helps in FTP_HELP_RESPONSE:
                 Reply = Reply +  helps
-            Reply = Reply + "214 HELP command successful."
+            Reply = Reply + "214 HELP command successful.\r\n"
         else:
-            Reply = "530 Please login with USER and PASS."
+            Reply = "530 Please login with USER and PASS.\r\n"
         self.ClientSocket.send(Reply.encode('UTF-8'))
         
 # The main server control socket listens for new connections and creates threads
