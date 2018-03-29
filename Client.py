@@ -106,8 +106,8 @@ class Client(object):
     def sendCommand(self):
         try:
             self.ControlSocket.send(self.command.encode('UTF-8'))
-            print "C----------->S "+self.command
-        else:
+            print "C----------->S "+ self.command
+        except:
             print "Not connected to server. Please Disconnect"
     # -----------------------------------
     # function USER
