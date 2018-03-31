@@ -1,8 +1,9 @@
 import socket
 import os
 import sys
-import select
+
 from FileRW import *
+
 script_dir = os.path.dirname(__file__)
 
         
@@ -61,7 +62,7 @@ class Client(object):
         self.command = ""
         # FTP information
         self.Port = 2500#21#2500
-        self.Host = '127.0.0.1'#'ftp.drivehq.com'#'127.0.0.1'  #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
+        self.Host = '192.168.0.101'#'ftp.drivehq.com'#'127.0.0.1'  #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
         self.type = FTP_TYPE["A"]
         self.ControlSocket = socket.socket()
         self.DataSocket = socket.socket()
@@ -148,7 +149,8 @@ class Client(object):
         self.FTPCommand('RETR', File_Name)
         
         if not self.server_reply[0] == '5':
-            File_Name = str(self.UserPath)+ '/' + File_Name
+            path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,File_Name))
+            File_Name = str(path)
             ReadFromSocket(self.DataSocket, File_Name, self.type)
             
         self.CloseDataConnection()
@@ -158,7 +160,8 @@ class Client(object):
         self.FTPCommand('STOR',File_Name)
     
         if not self.server_reply[0] == '5':
-            File_Name = str(self.UserPath)+ '/' + str(File_Name)
+            path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,File_Name))
+            File_Name = str(path)
             WriteToSocket(self.DataSocket, File_Name, self.type)
             
         self.DataSocket.shutdown(socket.SHUT_WR)
@@ -177,7 +180,7 @@ class Client(object):
     #   -> sends FTP Command == LIST to server
     # -----------------------------------
     def FileDirectory(self):
-        
+        print self.UserPath
         self.FTPCommand('LIST') 
         
         if self.server_reply[0] == "1" or self.server_reply[0] == "2":
@@ -245,6 +248,14 @@ class Client(object):
     def ParentDirectory(self):
         self.FTPCommand('CDUP','')
     
+    # send FTP COMMAND == PWD to server
+    def getCWD(self):
+        self.FTPCommand('PWD')
+        self.server_reply.replace('', '')
+        End = self.server_reply.find('\r\n')
+        print "PWD: "+ self.server_reply [3:End]
+        return self.server_reply[3:End]
+        
     # send FTP COMMAND == DELE (File_Name) to server
     def DeleteFile(self, File_Name):
         self.FTPCommand('DELE', File_Name)
@@ -268,6 +279,8 @@ class Client(object):
     def Connect(self):
         self.ControlSocket = socket.socket()
         self.ControlSocket.connect((self.Host,self.Port))
-        self.ControlSocket.settimeout(10.0)
+        self.ControlSocket.settimeout(1.0)
         self.getServerReply()
-        self.ControlConnectionFlag = True
+        if self.server_reply[0] == "2":
+            self.ControlConnectionFlag = True
+        

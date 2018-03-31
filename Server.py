@@ -2,15 +2,17 @@ import socket
 import threading
 import os
 import sys
-from FileRW import *
 import shutil
 
+from FileRW import *
+
 Port = 2500
-Host = '127.0.0.1'
+Host = '192.168.0.101'
+#127.0.0.1'
 
-script_dir = os.path.dirname(__file__)
-
-LoginDetails = {"user": "123"}
+#script_dir = os.path.dirname(__file__) #for some reason, the server doesn't like this :/
+script_dir = os.getcwd()
+LoginDetails = {"user": "123", "userKay":"123"}
 
         
 FTP_TYPE = {
@@ -54,7 +56,6 @@ class FTP_Client(threading.Thread):
     
     def __init__(self,ClientSocket,ClientAddress):
         threading.Thread.__init__(self)
-        print script_dir
         self.ClientSocket = ClientSocket
         self.ClientAddress = ClientAddress
         self.DataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,7 +69,7 @@ class FTP_Client(threading.Thread):
         self.loginFlag = False
         self.usernameFlag = False
         self.username = ""
-      
+        #print self.UserPath
         print ('Connection request from address: ' + str(self.ClientAddress))
         
     # -----------------------------------
@@ -123,7 +124,7 @@ class FTP_Client(threading.Thread):
                 
             elif Command == 'CWD':
                 self.ChangeDirectory(Argument)
-                print(self.UserPath)
+                #print(self.UserPath)
                 continue
             
             elif Command == 'MKD':
@@ -210,7 +211,7 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def PASS(self, password):
         if self.loginFlag or not self.usernameFlag:
-            ReplyMsg = "451 Requested action aborted: local error in processing.\r\n"
+            ReplyMsg = "530 Not logged in.\r\n"
         elif (password == LoginDetails[self.username]):
             self.loginFlag = True
             ReplyMsg = "230 User logged in, proceed.\r\n"
@@ -237,7 +238,8 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def Receive_File(self, File_Name):
         File_Name = str(File_Name).replace("\\","")
-        File_Name = str(self.UserPath)+ '/' + File_Name
+        path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,File_Name))
+        File_Name = str(path)
         ReadFromSocket(self.DataSocket, File_Name, self.type)
        
         self.type = FTP_TYPE["A"]
@@ -259,7 +261,8 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def Transmit_File(self, File_Name):
         File_Name = str(File_Name).replace("\\","")
-        File_Name = str(self.UserPath)+ '/'+str(File_Name)
+        path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,File_Name))
+        File_Name = str(path)
         WriteToSocket(self.DataSocket, File_Name, self.type)
         
         self.type = FTP_TYPE["A"]
@@ -275,7 +278,7 @@ class FTP_Client(threading.Thread):
     # This function does nothing! 
     # -----------------------------------
     def NoAction(self):
-        Input = '200 OK\r\n''
+        Input = '200 OK\r\n'
         self.ClientSocket.send(Input.encode('UTF-8'))
         return
     
@@ -299,7 +302,7 @@ class FTP_Client(threading.Thread):
                 continue
             files = files +add+ str(i) + add+'\n'
        
-        print files
+        #print files
         self.DataSocket.send(files.encode('UTF-8'))
         self.DataSocket.close()
         Reply = '226 Successfully transferred list of current working directory\"\r\n'
@@ -323,7 +326,7 @@ class FTP_Client(threading.Thread):
             Reply = '200 Type set to ' + Type +'\r\n'
         else:
             Reply = '400 Type ' + Type + ' not supported\r\n'
-        print "Data"
+        #print "Data"
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
     
@@ -360,8 +363,10 @@ class FTP_Client(threading.Thread):
     # FTP COMMAND == CWD
     def ChangeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
-        if os.path.isdir(self.UserPath+"/"+str(DirectoryName)):
-            self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
+        path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
+        #print path
+        if os.path.isdir(path):
+            self.UserPath = path
             Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.\r\n'
         else :
             Reply = '550 \"' + DirectoryName + '\"does not exsist.\r\n'
@@ -372,7 +377,8 @@ class FTP_Client(threading.Thread):
     # FTP COMMAND == MKD
     def MakeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
-        os.mkdir(self.UserPath+"/"+DirectoryName)
+        path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
+        os.mkdir(path)
         Reply = '257 \"' + DirectoryName + '\" created successfully\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         self.getUserPath()
@@ -381,7 +387,8 @@ class FTP_Client(threading.Thread):
     # FTP COMMAND == RMD
     def RemoveDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
-        shutil.rmtree(self.UserPath+"/"+DirectoryName) # Removes folder and all its contents
+        path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
+        shutil.rmtree(path) # Removes folder and all its contents
         #os.rmdir(DirectoryName)
         Reply = '250 \"' + DirectoryName + '\" deleted successfully.\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
@@ -392,23 +399,24 @@ class FTP_Client(threading.Thread):
     # Changes the users cwd to the parent directory
     def ParentDirectory(self):
         self.UserPath = self.UserParentDir
-        Reply = os.path.basename(self.UserPath)
+        Reply = "250 "+os.path.basename(self.UserPath)+ " is your current working directory\r\n "
         self.ClientSocket.send(Reply.encode('UTF-8')) 
-        print(self.UserPath)
+        #print(self.UserPath)
         return
 
     #FTP COMMAND == PWD
     #Prints current working directory
     def PrintWorkingDirectory(self):
-        Folder_Name = os.path.basename(self.UserPath)
-        Reply = '257 "/" is your current working directory\r\n'
+        Path = os.path.basename(self.UserPath)
+        Reply = '257 '+ Path +'\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
+        
     # FTP COMMAND == DELE
     def DeleteFile(self,File_Name):
-        print self.UserPath
         File_Name = str(File_Name).replace("\\","")
-        os.remove(self.UserPath+'/'+File_Name)
+        path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,File_Name))
+        os.remove(path)
         Reply = '250 \"' + File_Name + '\" deleted successfully.\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return

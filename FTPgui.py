@@ -8,6 +8,16 @@ import tkSimpleDialog
 import tkMessageBox
 from PIL import Image, ImageTk
 
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# class App
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# This class is responsible for the presentation of the FTP client and also processing of some data
+# that it may receive from the client to display to the user
+#
+# It uses the methods and flags in the Client class to create functionality
+# and displays the correlating state to the user
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
 class App:
     
     def __init__(self, master):
@@ -23,7 +33,9 @@ class App:
         self.createAllVisuals()
         self.bindButtons()
         self.client = Client()
-        
+        self.cwd = ""
+    
+    # Setup visuals
     def createCanvas(self):
         #background
         image2 = Image.open('background.jpg')
@@ -66,7 +78,7 @@ class App:
         self.ShowServerRepliesUI()
         #self.can7.place(x=0,y=450)
         
-
+    # Control for visuals
     def HideBackground(self):
         self.bground.place_forget()
         
@@ -138,6 +150,7 @@ class App:
     def UpdateDownloadListUI(self):
         Text = "Server Files"
         DL  = Label(self.can6, text=Text, font=("Times", 15),bg='purple1', justify=LEFT).grid(row=0,column=1, columnspan=3)
+        #CWD = Label(self.can6, text=self.cwd, font=("Times", 15),bg='purple1', justify=RIGHT).grid(row=0,column=1, columnspan=3)
         scrollbar = Scrollbar(self.can6)
         scrollbar.grid(row=1,column=3, rowspan=5, sticky=N+S)
         self.downloadlist= []
@@ -152,17 +165,17 @@ class App:
         self.addServerReplyText(self.client.server_reply)
         serverList = self.client.FileDirectory()
        
-        print "List"
+        #print "List"
         for filename in serverList:
             #need to look for : and then go three spaces forward
             x = str(filename)
-            print x
+            #print x
             pos = x.find(':')
             if pos > -1:
                 x=x[pos+4:len(filename)-1]
             else:
                 x=x[1:len(filename)-1]
-            print x
+            #print x
             self.downloadlist.insert(END,x)
             
         self.addClientCommandText(self.client.command)
@@ -236,7 +249,7 @@ class App:
         #T10L.place( x=40 , y=90)
         T15L.place( x=40 , y=90)
    
-    #create entry fields for username and password
+        # create entry fields for username and password
         self.username=Entry(self.can1, width=20, font=("Times", 20))
         self.username.insert(5,'')
         self.username.place(x=110,y=10)
@@ -244,7 +257,8 @@ class App:
         self.passphrase=Entry(self.can1,width=20, font=("Times", 20))
         self.passphrase.insert(5,'')
         self.passphrase.place(x=110,y=60)
-      
+         
+        # create buttons
         self.LoginButton=Button(self.can1,text=T4, width=15, font=("Times", 20))
         self.LoginButton.config(highlightbackground='black')
         self.LoginButton.place(x=110,y=110)
@@ -300,7 +314,7 @@ class App:
         self.HelpButton.config(highlightbackground='black')
         self.HelpButton.place(x=10,y=20)
 
-
+    # functions from client are assigned to appropriate methods using procedures
     def ConnectCommands(self):
         #send command to server, receive server response, change color according to status
         self.client.Connect()
@@ -318,6 +332,7 @@ class App:
         # must check to see if logged in successfully
         if self.client.ControlConnectionFlag:
             self.Login()
+            #self.cwd = self.client.getCWD()
             self.LoggedScreen()
         
     def Login(self):    
@@ -362,7 +377,7 @@ class App:
         name = str(self.downloadlist.get(self.downloadlist.curselection()))
         isfile = isFile(name)
         if isfile:
-            print "Downloading " +name
+            print "Downloading " + name
             # Set Type
             self.client.DataType(getType(name))
             self.addClientCommandText(self.client.command)
@@ -413,7 +428,8 @@ class App:
     #If client wants to delete their own folders for convience
     def UploadDeleteCommands(self):
         try:
-            name = self.client.UserPath+'/'+str(self.uploadlist.get(self.uploadlist.curselection()))
+            File_Name = str(self.uploadlist.get(self.uploadlist.curselection()))
+            name = os.path.abspath(os.path.join(os.path.sep,self.client.UserPath,File_Name))
             print name
             os.remove(name)
             self.UpdateUploadListUI() 
@@ -429,20 +445,22 @@ class App:
             self.client.ChangeDirectory(name)
             self.addClientCommandText(self.client.command)
             self.addServerReplyText(self.client.server_reply)
+            #self.cwd = self.client.getCWD()
             self.UpdateDownloadListUI()
-        return
+        
         
     def HomeDirCommands(self):
         self.client.ParentDirectory()
         self.addClientCommandText(self.client.command)
         self.addServerReplyText(self.client.server_reply)
+        #self.cwd = self.client.getCWD()
         self.UpdateDownloadListUI()
     
     def Help(self):
         if self.client.ControlConnectionFlag:
             self.client.GetHelp()
             tkMessageBox.showinfo("Server Commands", self.client.server_reply)
-        
+    
     def bindButtons(self):
         self.LoginButton.config(command=self.LoginCommands)
         self.ConnectButton.config(command=self.ConnectCommands)
@@ -458,7 +476,7 @@ class App:
         self.FolderChangeButtonServer.config(command=self.CHDirCommands)
         self.HomeButtonServer.config(command=self.HomeDirCommands)
         self.HelpButton.config(command=self.Help)
-        
+    
     def addClientCommandText(self, text):
         self.clientCommandsList.insert(END, text)
         self.clientCommandsList.see(END)
@@ -493,6 +511,8 @@ class App:
         self.can2.itemconfig(self.dataIndicator ,fill="green")
         self.panel1.update_idletasks()
     
+    # methods that control what can be seen by the user
+    # for different states
     def DisconnectedScreen(self):
         if not self.client.ControlConnectionFlag:
             print "DC..."
