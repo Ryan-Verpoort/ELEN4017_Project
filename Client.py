@@ -15,29 +15,28 @@ FTP_TYPE = {
 
 EXTENSION = {
     ".jpg": "I",
-    ".png" : "I",
-    ".mp4" : "I",
-    ".txt" : "A",
+    ".png": "I",
+    ".mp4": "I",
+    ".txt": "A",
     ".avi": "I"
 }
 
-'''
-
-    For each class, include a brief description, author and date of last modification
-    For each method, include a description of its purpose, functions, parameters and results
-'''
 # Return the appropriate encoding type for the extension on File_Name 
 def getType(File_Name):
     # ---------------------
+    print File_Name
     File_Name = str(File_Name).replace("\\","")
     end=len(File_Name)
     extensionIndex = File_Name.find(".")
-    extension = File_Name [extensionIndex:end]
-    if extension in EXTENSION:
-        string = EXTENSION[extension]
+    ext = File_Name [extensionIndex:end]
+    ext = ext.replace(" ", "")
+    print ext
+    if ext in EXTENSION:
+        string = EXTENSION[ext]
         print string
         return string
-    print "Only Processing .jpeg .png .mp4 .txt .avi" 
+    else:
+        print "Only Processing .jpeg .png .mp4 .txt .avi" 
     
     #ftp.drivehq.om
     #username = abctest321
@@ -61,8 +60,8 @@ class Client(object):
         self.server_reply = ""
         self.command = ""
         # FTP information
-        self.Port = 2500#21#2500
-        self.Host = '192.168.0.101'#'ftp.drivehq.com'#'127.0.0.1'  #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
+        self.Port = 21#2500#21#2500
+        self.Host = 'ftp.drivehq.com'#'192.168.0.101'#'ftp.drivehq.com'#'127.0.0.1'  #'66.220.9.50'#'ftp.dlptest.com' #'ftp.mirror.ac.za'
         self.type = FTP_TYPE["A"]
         self.ControlSocket = socket.socket()
         self.DataSocket = socket.socket()
@@ -264,7 +263,6 @@ class Client(object):
     def DataType(self, Type):
         if Type in FTP_TYPE:
             self.type = FTP_TYPE[Type]
-            
         else:
             self.type = FTP_TYPE["A"]
             print "type argument not implemented-- Setting to default type"
@@ -279,7 +277,7 @@ class Client(object):
     def Connect(self):
         self.ControlSocket = socket.socket()
         self.ControlSocket.connect((self.Host,self.Port))
-        self.ControlSocket.settimeout(1.0)
+        self.ControlSocket.settimeout(5.0)
         self.getServerReply()
         if self.server_reply[0] == "2":
             self.ControlConnectionFlag = True

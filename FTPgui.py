@@ -171,11 +171,13 @@ class App:
             x = str(filename)
             #print x
             pos = x.find(':')
+            x = x.replace("\\","")
             if pos > -1:
                 x=x[pos+4:len(filename)-1]
             else:
-                x=x[1:len(filename)-1]
-            #print x
+                x=x[0:len(filename)]
+            print x
+            
             self.downloadlist.insert(END,x)
             
         self.addClientCommandText(self.client.command)
@@ -403,7 +405,7 @@ class App:
         print name
         
         isfile = isFile(name)
-
+        name = "\\"+name+"\\"
         if isfile:
             self.client.DeleteFile(name)
             Removed = True
@@ -432,8 +434,7 @@ class App:
             name = os.path.abspath(os.path.join(os.path.sep,self.client.UserPath,File_Name))
             print name
             os.remove(name)
-            self.UpdateUploadListUI() 
-            
+            self.UpdateUploadListUI()  
             print "Deleted file from: " +str(name)
         except:
             print "No selected item."
@@ -441,6 +442,7 @@ class App:
     def CHDirCommands(self):
         #cwd, list
         name = str(self.downloadlist.get(self.downloadlist.curselection()))
+        name = "\\"+name+"\\"
         if not isFile(name):
             self.client.ChangeDirectory(name)
             self.addClientCommandText(self.client.command)

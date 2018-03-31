@@ -7,7 +7,7 @@ import shutil
 from FileRW import *
 
 Port = 2500
-Host = '127.0.0.1'#'192.168.0.101'
+Host = '192.168.0.101'
 #127.0.0.1'
 
 #script_dir = os.path.dirname(__file__) #for some reason, the server doesn't like this :/
@@ -69,8 +69,10 @@ class FTP_Client(threading.Thread):
         self.loginFlag = False
         self.usernameFlag = False
         self.username = ""
+        self.quitFlag = False
         #print self.UserPath
         print ('Connection request from address: ' + str(self.ClientAddress))
+        
     # -----------------------------------
     # function run
     # -----------------------------------
@@ -84,10 +86,10 @@ class FTP_Client(threading.Thread):
     def run(self):
         ReplyMsg = "220 Welcome to Group 3's FTP server.\r\n"
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
-
-        while 1:
+        while not self.quitFlag:
             Input = self.ClientSocket.recv(4096).decode('UTF-8')
             Command,Argument = self.InputArgument(Input)
+            
             if Command == 'USER':
                 self.USER(Argument)
                 continue
@@ -96,69 +98,69 @@ class FTP_Client(threading.Thread):
                 self.PASS(Argument)
                 continue
                 
-            if Command == 'STOR':
-                self.Receive_File(Argument)
-                continue
+            if self.loginFlag: 
+                if Command == 'STOR':
+                    self.Receive_File(Argument)
+                    continue
             
-            elif Command == 'RETR':
-                self.Transmit_File(Argument)
-                continue
+                elif Command == 'RETR':
+                    self.Transmit_File(Argument)
+                    continue
         
-            elif Command == 'NOOP':
-                self.NoAction()
-                continue
+                elif Command == 'NOOP':
+                    self.NoAction()
+                    continue
             
-            elif Command == 'LIST':
-                #print str(self.UserPath)
-                self.CurrentFileDirectory()
-                continue
+                elif Command == 'LIST':
+                    self.CurrentFileDirectory()
+                    continue
             
-            elif Command == 'TYPE':
-                self.DataType(Argument)
-                continue
+                elif Command == 'TYPE':
+                    self.DataType(Argument)
+                    continue
                 
-            elif Command == 'PASV':
-                self.PassiveMode()
-                continue
+                elif Command == 'PASV':
+                    self.PassiveMode()
+                    continue
                 
-            elif Command == 'CWD':
-                self.ChangeDirectory(Argument)
-                #print(self.UserPath)
-                continue
+                elif Command == 'CWD':
+                    self.ChangeDirectory(Argument)
+                    continue
             
-            elif Command == 'MKD':
-                self.MakeDirectory(Argument)
-                continue
+                elif Command == 'MKD':
+                    self.MakeDirectory(Argument)
+                    continue
             
-            elif Command == 'RMD':
-                self.RemoveDirectory(Argument)
-                continue
+                elif Command == 'RMD':
+                    self.RemoveDirectory(Argument)
+                    continue
             
-            elif Command == 'CDUP':
-                self.ParentDirectory()
-                continue
+                elif Command == 'CDUP':
+                    self.ParentDirectory()
+                    continue
+            
+                elif Command == 'PWD':
+                    self.PrintWorkingDirectory()
+                    continue
 
-            elif Command == 'PWD':
-                self.PrintWorkingDirectory()
-                continue
-
-            elif Command == 'DELE':
-                self.DeleteFile(Argument)
-                continue
+                elif Command == 'DELE':
+                    self.DeleteFile(Argument)
+                    continue
                 
-            elif Command == 'QUIT':
-                self.ClientDisconnect()
-                break
+                elif Command == 'QUIT':
+                    self.ClientDisconnect()
+                    continue
                 
-            elif Command == 'HELP':
-                self.HELP()
-                continue
+                elif Command == 'HELP':
+                    self.HELP()
+                    continue
                 
+                else:
+                    self.ClientSocket.send('502 Command not implemented.\r\n')
             else:
-                self.ClientSocket.send('502 Command not implemented.\r\n')
-                
+                Reply = "530 Please login with USER and PASS.\r\n"
+                self.ClientSocket.send(Reply.encode('UTF-8'))
         self.ClientSocket.close()
-        
     # -----------------------------------
     # function InputArgument
     # -----------------------------------
@@ -198,7 +200,8 @@ class FTP_Client(threading.Thread):
             ReplyMsg = "331  User name okay, need password.\r\n" 
         else: 
             self.usernameFlag = False
-            ReplyMsg = "530 Need an account. No anonymous users allowed.\r\n"
+            self.quitFlag = True
+            ReplyMsg = "530 Need an account. No anonymous users allowed. \r\n"
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
     
     # -----------------------------------
@@ -293,7 +296,7 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def CurrentFileDirectory(self):
         DirectoryName = os.path.basename(self.UserPath)
-        Files = 'Files in Current Directory : "\"' + DirectoryName
+        Files = 'Files in Current Directory : \"' + DirectoryName
         FileDirectory = os.listdir(self.UserPath)
         
         #add = "\\"
@@ -301,7 +304,7 @@ class FTP_Client(threading.Thread):
         for i in FileDirectory:
             if str(i)[0] == ".":
                 continue
-            files = files + str(i) +'\n'
+            files = files + str(i)+'\n'
        
         #print files
         self.DataSocket.send(files.encode('UTF-8'))
@@ -320,13 +323,13 @@ class FTP_Client(threading.Thread):
     # This function does the following:
     #   -> sets the type for the next data transmission
     # -----------------------------------
-    def DataType(self,Type):
+    def DataType(self,Typez):
         #if true let user choose type
-        if Type in FTP_TYPE:
-            self.type = FTP_TYPE[Type]
-            Reply = '200 Type set to ' + Type +'\r\n'
+        if str(Typez) in FTP_TYPE:
+            self.type = FTP_TYPE[Typez]
+            Reply = '200 Type set to ' + Typez +'\r\n'
         else:
-            Reply = '400 Type ' + Type + ' not supported\r\n'
+            Reply = '400 Type ' + Typez + ' not supported\r\n'
         #print "Data"
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
@@ -364,10 +367,11 @@ class FTP_Client(threading.Thread):
     # FTP COMMAND == CWD
     def ChangeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
-        if str(DirectoryName )== "/":
-            Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.\r\n'
-        elif os.path.isdir(self.UserPath+"/"+str(DirectoryName)):
-            self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
+        DirectoryName = str(DirectoryName).replace("/","")
+        path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
+        #print path
+        if os.path.isdir(path):
+            self.UserPath = path
             Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.\r\n'
         else :
             Reply = '550 \"' + DirectoryName + '\"does not exsist.\r\n'
@@ -378,6 +382,7 @@ class FTP_Client(threading.Thread):
     # FTP COMMAND == MKD
     def MakeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
+        DirectoryName = str(DirectoryName).replace("/","")
         path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
         os.mkdir(path)
         Reply = '257 \"' + DirectoryName + '\" created successfully\r\n'
@@ -388,6 +393,7 @@ class FTP_Client(threading.Thread):
     # FTP COMMAND == RMD
     def RemoveDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
+        DirectoryName = str(DirectoryName).replace("/","")
         path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
         shutil.rmtree(path) # Removes folder and all its contents
         #os.rmdir(DirectoryName)
@@ -409,13 +415,14 @@ class FTP_Client(threading.Thread):
     #Prints current working directory
     def PrintWorkingDirectory(self):
         Path = os.path.basename(self.UserPath)
-        Reply = '257 "/"\r\n'
+        Reply = '257 '+ Path +'\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
         
     # FTP COMMAND == DELE
     def DeleteFile(self,File_Name):
         File_Name = str(File_Name).replace("\\","")
+        File_Name = str(File_Name).replace("/","")
         path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,File_Name))
         os.remove(path)
         Reply = '250 \"' + File_Name + '\" deleted successfully.\r\n'
@@ -427,6 +434,7 @@ class FTP_Client(threading.Thread):
         print('Client at address: ' + str(ClientAddress) + ' Disconnected')
         Reply = '221 Service closing control connection. \n' + self.username +' Logged out\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
+        self.quitFlag = True
         return
         
     # -----------------------------------
@@ -437,15 +445,13 @@ class FTP_Client(threading.Thread):
     #   -> sends the user the implemented server commands
     # -----------------------------------
     def HELP(self):
-        if self.loginFlag:
-            Reply = "214 The following commands are recognised:\r\n"
-            for helps in FTP_HELP_RESPONSE:
-                Reply = Reply +  helps
-            Reply = Reply + "214 HELP command successful.\r\n"
-        else:
-            Reply = "530 Please login with USER and PASS.\r\n"
+        Reply = "214 The following commands are recognised:\r\n"
+        for helps in FTP_HELP_RESPONSE:
+            Reply = Reply +  helps
+        Reply = Reply + "214 HELP command successful.\r\n"
         self.ClientSocket.send(Reply.encode('UTF-8'))
-        
+    
+            
 # The main server control socket listens for new connections and creates threads
 ControlSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ControlSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
