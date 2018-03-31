@@ -71,7 +71,6 @@ class FTP_Client(threading.Thread):
         self.username = ""
         #print self.UserPath
         print ('Connection request from address: ' + str(self.ClientAddress))
-        
     # -----------------------------------
     # function run
     # -----------------------------------
@@ -106,7 +105,7 @@ class FTP_Client(threading.Thread):
                 continue
         
             elif Command == 'NOOP':
-                self.NoAction(Command)
+                self.NoAction()
                 continue
             
             elif Command == 'LIST':
@@ -137,9 +136,11 @@ class FTP_Client(threading.Thread):
             
             elif Command == 'CDUP':
                 self.ParentDirectory()
-            
+                continue
+
             elif Command == 'PWD':
                 self.PrintWorkingDirectory()
+                continue
 
             elif Command == 'DELE':
                 self.DeleteFile(Argument)
@@ -292,7 +293,7 @@ class FTP_Client(threading.Thread):
     # -----------------------------------
     def CurrentFileDirectory(self):
         DirectoryName = os.path.basename(self.UserPath)
-        Files = 'Files in Current Directory : \"' + DirectoryName + '\r\n'
+        Files = 'Files in Current Directory : "\"' + DirectoryName
         FileDirectory = os.listdir(self.UserPath)
         
         add = "\\"
@@ -305,7 +306,7 @@ class FTP_Client(threading.Thread):
         #print files
         self.DataSocket.send(files.encode('UTF-8'))
         self.DataSocket.close()
-        Reply = '226 Successfully transferred list of current working directory\"\r\n'
+        Reply = '226 Successfully transferred list of current working directory.\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         #print(UserPath)
         return
@@ -355,7 +356,7 @@ class FTP_Client(threading.Thread):
         self.ClientSocket.send(Message.encode("UTF-8"))
         self.DataSocket, self.DataAddress = FileTransferSocket.accept()
         
-        Message = ( '150 Connection accepted')
+        Message = ( '150 Connection accepted\r\n')
         self.ClientSocket.send(Message.encode("UTF-8"))
         
         FileTransferSocket.close()
@@ -363,10 +364,12 @@ class FTP_Client(threading.Thread):
     # FTP COMMAND == CWD
     def ChangeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
+        print DirectoryName
+        if str(DirectoryName )== "/":
+            Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.\r\n'
+        elif os.path.isdir(self.UserPath+"/"+str(DirectoryName)):
+            self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
         path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
-        #print path
-        if os.path.isdir(path):
-            self.UserPath = path
             Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.\r\n'
         else :
             Reply = '550 \"' + DirectoryName + '\"does not exsist.\r\n'
