@@ -7,7 +7,7 @@ import shutil
 from FileRW import *
 
 Port = 2500
-Host = '192.168.0.101'
+Host = '127.0.0.1'#'192.168.0.101'
 #127.0.0.1'
 
 #script_dir = os.path.dirname(__file__) #for some reason, the server doesn't like this :/
@@ -84,10 +84,10 @@ class FTP_Client(threading.Thread):
     def run(self):
         ReplyMsg = "220 Welcome to Group 3's FTP server.\r\n"
         self.ClientSocket.send(ReplyMsg.encode('UTF-8'))
+
         while 1:
             Input = self.ClientSocket.recv(4096).decode('UTF-8')
             Command,Argument = self.InputArgument(Input)
-            
             if Command == 'USER':
                 self.USER(Argument)
                 continue
@@ -296,12 +296,12 @@ class FTP_Client(threading.Thread):
         Files = 'Files in Current Directory : "\"' + DirectoryName
         FileDirectory = os.listdir(self.UserPath)
         
-        add = "\\"
+        #add = "\\"
         files = ""
         for i in FileDirectory:
             if str(i)[0] == ".":
                 continue
-            files = files +add+ str(i) + add+'\n'
+            files = files + str(i) +'\n'
        
         #print files
         self.DataSocket.send(files.encode('UTF-8'))
@@ -364,12 +364,10 @@ class FTP_Client(threading.Thread):
     # FTP COMMAND == CWD
     def ChangeDirectory(self,DirectoryName):
         DirectoryName = str(DirectoryName).replace("\\","")
-        print DirectoryName
         if str(DirectoryName )== "/":
             Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.\r\n'
         elif os.path.isdir(self.UserPath+"/"+str(DirectoryName)):
             self.UserPath = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
-        path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,DirectoryName))
             Reply = '250 CWD successful. \"' + DirectoryName + '\" is current directory.\r\n'
         else :
             Reply = '550 \"' + DirectoryName + '\"does not exsist.\r\n'
@@ -411,7 +409,7 @@ class FTP_Client(threading.Thread):
     #Prints current working directory
     def PrintWorkingDirectory(self):
         Path = os.path.basename(self.UserPath)
-        Reply = '257 '+ Path +'\r\n'
+        Reply = '257 "/"\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
         
