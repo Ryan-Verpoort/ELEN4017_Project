@@ -1,4 +1,0 @@
-HELP
-CDUP
-PORT
-LOGIN for server
