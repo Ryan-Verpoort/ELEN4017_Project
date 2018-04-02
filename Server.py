@@ -264,7 +264,7 @@ class FTP_Client(threading.Thread):
     #   -> resets the type
     # -----------------------------------
     def Transmit_File(self, File_Name):
-        File_Name = str(File_Name).replace("\\","")
+        #File_Name = str(File_Name).replace("\\","")
         path = os.path.abspath(os.path.join(os.path.sep,self.UserPath,File_Name))
         File_Name = str(path)
         WriteToSocket(self.DataSocket, File_Name, self.type)
@@ -415,7 +415,7 @@ class FTP_Client(threading.Thread):
     #Prints current working directory
     def PrintWorkingDirectory(self):
         Path = os.path.basename(self.UserPath)
-        Reply = '257 '+ Path +'\r\n'
+        Reply = '257 "/"'+ Path + '\r\n'
         self.ClientSocket.send(Reply.encode('UTF-8'))
         return
         
